@@ -1,17 +1,17 @@
 import { Outlet } from "react-router-dom"
-import Header from "../components/Header"
-import Footer from "../components/Footer"
+import LeftMenu from "../components/LeftMenu"
+import RightMenu from "../components/RightMenu"
 
 function MainLayout() {
   return (
-    <div className="app">
-      <Header />
+    <div className="app flex flex-col md:flex-row min-h-screen bg-black">
+      <LeftMenu />
 
-      <main className="content">
+      <main className="content flex-1 p-4">
         <Outlet />
       </main>
 
-      <Footer />
+      <RightMenu />
     </div>
   )
 }
