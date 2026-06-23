@@ -3,6 +3,7 @@ import cors from "cors"
 import fs from "fs"
 import path from "path"
 import { generateCover } from "./coverGenerator"
+import { getPage, getPageCount } from "./reader"
 
 const app = express()
 app.use(cors())
@@ -72,6 +73,40 @@ app.get("/api/cover", async (req, res) => {
   }
 
   res.sendFile(path.resolve(coverPath))
+})
+
+app.get("/api/read/info", async (req, res) => {
+  const filePath = req.query.path as string
+  const fileType = req.query.type as string
+
+  if (!filePath || !fs.existsSync(filePath)) {
+    res.status(404).json({ error: "Arquivo não encontrado" })
+    return
+  }
+
+  const pageCount = await getPageCount(filePath, fileType)
+  res.json({ pageCount })
+})
+
+// Retorna a imagem de uma página específica
+app.get("/api/read/page", async (req, res) => {
+  const filePath = req.query.path as string
+  const fileType = req.query.type as string
+  const pageNum = parseInt(req.query.page as string)
+
+  if (!filePath || !fs.existsSync(filePath) || isNaN(pageNum)) {
+    res.status(400).json({ error: "Parâmetros inválidos" })
+    return
+  }
+
+  try {
+    const buffer = await getPage(filePath, fileType, pageNum)
+    res.setHeader("Content-Type", "image/jpeg")
+    res.setHeader("Cache-Control", "private, max-age=3600")
+    res.send(buffer)
+  } catch (err) {
+    res.status(500).json({ error: String(err) })
+  }
 })
 
 // Serve a pasta de capas como estático também (opcional)

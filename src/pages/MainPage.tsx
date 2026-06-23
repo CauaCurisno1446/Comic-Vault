@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useOutletContext } from "react-router-dom"
+import { useOutletContext, useNavigate } from "react-router-dom"
 // import { FileText, BookOpen, Archive } from "lucide-react"
 
 interface OutletContext {
@@ -16,6 +16,17 @@ function MainPage() {
   const { selectedDir } = useOutletContext<OutletContext>()
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(false)
+
+  const navigate = useNavigate()
+
+  function openReader(file: FileItem) {
+    const params = new URLSearchParams({
+      path: file.path,
+      type: file.type,
+      title: file.name,
+    })
+    navigate(`/read?${params.toString()}`)
+  }
 
   useEffect(() => {
     if (!selectedDir) return
@@ -65,6 +76,7 @@ function MainPage() {
           {files.map((file) => (
             <div
               key={file.path}
+              onClick={() => openReader(file)}
               className="bg-[#1e1e1e] rounded-lg overflow-hidden flex flex-col cursor-pointer hover:bg-[#282828] hover:scale-105 transition-all"
             >
               {/* Capa */}
