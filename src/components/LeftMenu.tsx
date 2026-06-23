@@ -9,10 +9,14 @@ interface Dir {
   path: string
 }
 
-function LeftMenu() {
+type LeftMenuProps = {
+  selectedDir: string | null
+  onSelectDir: (path: string) => void
+}
+
+function LeftMenu({ selectedDir, onSelectDir }: LeftMenuProps) {
   const [dirs, setDirs] = useState<Dir[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedDir, setSelectedDir] = useState<string | null>(null)
 
   useEffect(() => {
     fetch(
@@ -64,7 +68,7 @@ function LeftMenu() {
           {dirs.map((dir) => (
             <div
               key={dir.path}
-              onClick={() => setSelectedDir(dir.path)}
+              onClick={() => onSelectDir(dir.path)}
               className={`
                 w-full flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer
                 transition-colors text-sm font-medium

@@ -28,4 +28,30 @@ app.get("/api/dirs", (req, res) => {
   res.json(dirs)
 })
 
+app.get("/api/files", (req, res) => {
+  const dirPath = req.query.path as string
+
+  if (!dirPath || !fs.existsSync(dirPath)) {
+    res.status(400).json({ error: "Caminho inválido" })
+    return
+  }
+
+  const SUPPORTED = [".pdf", ".cbz", ".cbr"]
+
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true })
+
+  const files = entries
+    .filter(
+      (e) =>
+        e.isFile() && SUPPORTED.includes(path.extname(e.name).toLowerCase()),
+    )
+    .map((e) => ({
+      name: path.basename(e.name, path.extname(e.name)),
+      path: path.join(dirPath, e.name),
+      type: path.extname(e.name).toLowerCase().slice(1),
+    }))
+
+  res.json(files)
+})
+
 app.listen(3001, () => console.log("Backend rodando em http://localhost:3001"))
