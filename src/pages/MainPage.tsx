@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useOutletContext } from "react-router-dom"
-import { FileText, BookOpen, Archive } from "lucide-react"
+// import { FileText, BookOpen, Archive } from "lucide-react"
 
 interface OutletContext {
   selectedDir: string | null
@@ -32,11 +32,11 @@ function MainPage() {
       .catch(() => setLoading(false))
   }, [selectedDir])
 
-  const getIcon = (type: string) => {
-    if (type === "pdf") return <FileText size={20} />
-    if (type === "cbz" || type === "cbr") return <BookOpen size={20} />
-    return <Archive size={20} />
-  }
+  // const getIcon = (type: string) => {
+  //   if (type === "pdf") return <FileText size={20} />
+  //   if (type === "cbz" || type === "cbr") return <BookOpen size={20} />
+  //   return <Archive size={20} />
+  // }
 
   return (
     <div className="w-full h-full bg-[#121212] rounded-lg flex flex-col overflow-hidden">
@@ -65,15 +65,31 @@ function MainPage() {
           {files.map((file) => (
             <div
               key={file.path}
-              className="bg-[#1e1e1e] rounded-lg p-4 flex flex-col items-center gap-2 cursor-pointer hover:bg-[#282828] transition-colors"
+              className="bg-[#1e1e1e] rounded-lg overflow-hidden flex flex-col cursor-pointer hover:bg-[#282828] hover:scale-105 transition-all"
             >
-              <div className="text-gray-400">{getIcon(file.type)}</div>
-              <span className="text-white text-xs text-center truncate w-full">
-                {file.name}
-              </span>
-              <span className="text-gray-500 text-xs uppercase">
-                {file.type}
-              </span>
+              {/* Capa */}
+              <div className="w-full aspect-[2/3] bg-[#282828] overflow-hidden">
+                <img
+                  src={`http://localhost:3001/api/cover?path=${encodeURIComponent(file.path)}&type=${file.type}`}
+                  alt={file.name}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  onError={(e) => {
+                    // fallback se não tiver capa
+                    ;(e.target as HTMLImageElement).style.display = "none"
+                  }}
+                />
+              </div>
+
+              {/* Info */}
+              <div className="p-2">
+                <span className="text-white text-xs font-medium line-clamp-2 leading-tight">
+                  {file.name}
+                </span>
+                <span className="text-gray-500 text-xs uppercase mt-1 block">
+                  {file.type}
+                </span>
+              </div>
             </div>
           ))}
         </div>
