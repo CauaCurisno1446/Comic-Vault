@@ -20,7 +20,7 @@ function LeftMenu({ selectedDir, onSelectDir }: LeftMenuProps) {
 
   useEffect(() => {
     fetch(
-      `http://localhost:3001/api/dirs?path=${encodeURIComponent(LIBRARY_PATH)}`,
+      `http://${window.location.hostname}:3001/api/dirs?path=${encodeURIComponent(LIBRARY_PATH)}`,
     )
       .then((r) => r.json())
       .then((data) => {

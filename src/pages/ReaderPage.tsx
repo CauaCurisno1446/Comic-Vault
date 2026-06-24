@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import { ChevronLeft, ChevronRight, X } from "lucide-react"
 
-const API = "http://localhost:3001"
+const API = `http://${window.location.hostname}:3001`
 const PREFETCH = 3
 
 function pageUrl(filePath: string, fileType: string, page: number) {

@@ -33,7 +33,7 @@ function MainPage() {
 
     setLoading(true)
     fetch(
-      `http://localhost:3001/api/files?path=${encodeURIComponent(selectedDir)}`,
+      `http://${window.location.hostname}:3001/api/files?path=${encodeURIComponent(selectedDir)}`,
     )
       .then((r) => r.json())
       .then((data) => {
@@ -82,7 +82,7 @@ function MainPage() {
               {/* Capa */}
               <div className="w-full aspect-[2/3] bg-[#282828] overflow-hidden">
                 <img
-                  src={`http://localhost:3001/api/cover?path=${encodeURIComponent(file.path)}&type=${file.type}`}
+                  src={`http://${window.location.hostname}:3001/api/cover?path=${encodeURIComponent(file.path)}&type=${file.type}`}
                   alt={file.name}
                   className="w-full h-full object-cover"
                   loading="lazy"

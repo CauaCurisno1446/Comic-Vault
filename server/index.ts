@@ -112,4 +112,6 @@ app.get("/api/read/page", async (req, res) => {
 // Serve a pasta de capas como estático também (opcional)
 app.use("/covers", express.static(path.join(process.cwd(), ".covers")))
 
-app.listen(3001, () => console.log("Backend rodando em http://localhost:3001"))
+app.listen(3001, "0.0.0.0", () =>
+  console.log("Backend rodando em http://0.0.0.0:3001"),
+)

@@ -1,4 +1,4 @@
-import { Settings } from "lucide-react"
+import { Settings, History } from "lucide-react"
 import Logo from "../static/img/logo-light.png"
 
 function RightMenu() {
@@ -12,7 +12,12 @@ function RightMenu() {
         />
       </div>
 
-      <div className="w-full max-w-xs flex-1 min-h-64 rounded-lg" />
+      <div className="w-full max-w-xs flex-1 min-h-64 bg-[#121212] rounded-lg p-4">
+        <div className="w-full flex items-center gap-2 text-white text-lg font-bold p-2 rounded-lg">
+          <History size={24} />
+          <span>Histórico de leitura</span>
+        </div>
+      </div>
 
       <div className="w-full max-w-xs h-20 bg-[#121212] rounded-lg flex flex-col items-start justify-center p-5 gap-5">
         <div className="w-full flex items-center gap-2 text-white text-lg font-bold cursor-pointer transition-colors hover:bg-gray-800 p-2 rounded-lg">

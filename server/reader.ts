@@ -20,7 +20,7 @@ function addToCache(key: string, buffer: Buffer) {
   pageCache.set(key, buffer)
 }
 
-// ── PDF ────────────────────────────────────────────────────────
+//PDF
 
 async function getPdfPage(filePath: string, pageNum: number): Promise<Buffer> {
   const key = cacheKey(filePath, pageNum)
@@ -30,8 +30,8 @@ async function getPdfPage(filePath: string, pageNum: number): Promise<Buffer> {
   const fileBuffer = fs.readFileSync(filePath)
   const doc = mupdf.Document.openDocument(fileBuffer, "application/pdf")
 
-  const page = doc.loadPage(pageNum - 1) // mupdf é 0-indexed
-  const matrix = mupdf.Matrix.scale(2, 2) // escala maior = melhor qualidade
+  const page = doc.loadPage(pageNum - 1)
+  const matrix = mupdf.Matrix.scale(2, 2)
   const pixmap = page.toPixmap(matrix, mupdf.ColorSpace.DeviceRGB, false, true)
 
   const buffer = await sharp(Buffer.from(pixmap.asPNG()))
@@ -49,16 +49,14 @@ export async function getPdfPageCount(filePath: string): Promise<number> {
   return doc.countPages()
 }
 
-// ── CBZ ────────────────────────────────────────────────────────
+//CBZ
 
-// Cache do zip aberto pra não reabrir a cada página
 const zipCache = new Map<string, { pages: string[]; zip: JSZip }>()
 
 async function getCbzPage(filePath: string, pageNum: number): Promise<Buffer> {
   const key = cacheKey(filePath, pageNum)
   if (pageCache.has(key)) return pageCache.get(key)!
 
-  // Abre o zip uma vez e guarda as páginas ordenadas
   if (!zipCache.has(filePath)) {
     const buffer = fs.readFileSync(filePath)
     const zip = await JSZip.loadAsync(buffer)
@@ -100,9 +98,8 @@ export async function getCbzPageCount(filePath: string): Promise<number> {
   return zipCache.get(filePath)!.pages.length
 }
 
-// ── CBR ────────────────────────────────────────────────────────
+//CBR
 
-// Cache das páginas do RAR (lista de nomes)
 const rarPagesCache = new Map<string, string[]>()
 
 async function getCbrPage(filePath: string, pageNum: number): Promise<Buffer> {
@@ -157,7 +154,7 @@ export async function getCbrPageCount(filePath: string): Promise<number> {
   return rarPagesCache.get(filePath)!.length
 }
 
-// ── Exports principais ─────────────────────────────────────────
+//Exports principais
 
 export async function getPage(
   filePath: string,
