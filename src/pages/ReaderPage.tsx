@@ -36,12 +36,22 @@ function ReaderPage() {
   const [showSettings, setShowSettings] = useState(false)
   const [resumePrompt, setResumePrompt] = useState<number | null>(null)
   const [zoom, setZoom] = useState(1)
+  const [panX, setPanX] = useState(0)
+  const [panY, setPanY] = useState(0)
 
+  // Reseta pan ao trocar página
+  useEffect(() => {
+    setPanX(0)
+    setPanY(0)
+  }, [currentPage])
+
+  // Trava scroll do body no mobile
   useEffect(() => {
     document.body.classList.add("reader-open")
     return () => document.body.classList.remove("reader-open")
   }, [])
 
+  // Esconde UI após 3s
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>
     const show = () => {
@@ -57,6 +67,7 @@ function ReaderPage() {
     }
   }, [])
 
+  // Busca total de páginas + progresso salvo
   useEffect(() => {
     if (!filePath) return
     fetch(
@@ -89,6 +100,7 @@ function ReaderPage() {
     })
   }, [currentPage, filePath, pageCount, settings.saveProgress])
 
+  // Prefetch
   useEffect(() => {
     const step = settings.doublePage ? 2 : 1
     for (let i = step; i <= PREFETCH * step; i += step) {
@@ -112,13 +124,14 @@ function ReaderPage() {
     setCurrentPage((p) => Math.max(p - step, 1))
   }, [settings.doublePage])
 
+  // Teclado
   const handleKey = useCallback(
     (e: KeyboardEvent) => {
       if (showSettings) return
       if (e.key === "ArrowRight" || e.key === "ArrowDown") goNext()
       if (e.key === "ArrowLeft" || e.key === "ArrowUp") goPrev()
       if (e.key === "+") setZoom((z) => Math.min(z + 0.25, 3))
-      if (e.key === "-") setZoom((z) => Math.max(z - 0.25, 0.5))
+      if (e.key === "-") setZoom((z) => Math.max(z - 0.25, 1))
       if (e.key === "Escape") navigate(-1)
     },
     [goNext, goPrev, navigate, showSettings],
@@ -139,25 +152,91 @@ function ReaderPage() {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black flex flex-col select-none touch-none"
+      className="fixed inset-0 z-50 bg-black flex flex-col select-none touch-none overflow-hidden"
       onTouchStart={(e) => {
-        const touch = e.touches[0]
-        ;(e.currentTarget as HTMLDivElement).dataset.touchX = String(
-          touch.clientX,
-        )
+        const el = e.currentTarget as HTMLDivElement
+
+        if (e.touches.length === 2) {
+          const dx = e.touches[0].clientX - e.touches[1].clientX
+          const dy = e.touches[0].clientY - e.touches[1].clientY
+          el.dataset.pinchDist = String(Math.hypot(dx, dy))
+          el.dataset.pinchZoom = String(zoom)
+          el.dataset.isPinching = "true"
+        } else {
+          el.dataset.isPinching = "false"
+          el.dataset.touchStartX = String(e.touches[0].clientX)
+          el.dataset.touchStartY = String(e.touches[0].clientY)
+          el.dataset.panX = String(panX)
+          el.dataset.panY = String(panY)
+          el.dataset.moved = "false"
+        }
+      }}
+      onTouchMove={(e) => {
+        const el = e.currentTarget as HTMLDivElement
+
+        if (e.touches.length === 2) {
+          el.dataset.isPinching = "true"
+          const initialDist = Number(el.dataset.pinchDist ?? 0)
+          const initialZoom = Number(el.dataset.pinchZoom ?? zoom)
+          if (initialDist === 0) return
+
+          const dx = e.touches[0].clientX - e.touches[1].clientX
+          const dy = e.touches[0].clientY - e.touches[1].clientY
+          const currentDist = Math.hypot(dx, dy)
+          const newZoom = Math.min(
+            Math.max(initialZoom * (currentDist / initialDist), 1),
+            3,
+          )
+          setZoom(newZoom)
+          return
+        }
+
+        // Pan quando zoomado
+        if (zoom > 1) {
+          el.dataset.moved = "true"
+          const startX = Number(el.dataset.touchStartX ?? 0)
+          const startY = Number(el.dataset.touchStartY ?? 0)
+          const startPanX = Number(el.dataset.panX ?? 0)
+          const startPanY = Number(el.dataset.panY ?? 0)
+          const dx = e.touches[0].clientX - startX
+          const dy = e.touches[0].clientY - startY
+
+          const maxPan = (zoom - 1) * (window.innerWidth / 2)
+          const newPanX = Math.min(Math.max(startPanX + dx, -maxPan), maxPan)
+          const newPanY = Math.min(Math.max(startPanY + dy, -maxPan), maxPan)
+
+          setPanX(newPanX)
+          setPanY(newPanY)
+        }
       }}
       onTouchEnd={(e) => {
-        const startX = Number(
-          (e.currentTarget as HTMLDivElement).dataset.touchX ?? 0,
-        )
-        const endX = e.changedTouches[0].clientX
-        const diff = startX - endX
-        if (Math.abs(diff) > 50) {
-          if (diff > 0) goNext()
-          else goPrev()
+        const el = e.currentTarget as HTMLDivElement
+
+        if (el.dataset.isPinching === "true") {
+          el.dataset.isPinching = "false"
+          if (zoom <= 1) {
+            setZoom(1)
+            setPanX(0)
+            setPanY(0)
+          }
+          return
+        }
+
+        // Se estava navegando com zoom, não troca página
+        if (el.dataset.moved === "true") return
+
+        // Tap simples sem zoom — troca pelo lado
+        if (zoom <= 1) {
+          const touch = e.changedTouches[0]
+          const tapX = touch.clientX
+          const screenWidth = window.innerWidth
+
+          if (tapX < screenWidth * 0.35) goPrev()
+          else if (tapX > screenWidth * 0.65) goNext()
         }
       }}
     >
+      {/* Modal de configurações */}
       {showSettings && (
         <SettingsModal
           settings={settings}
@@ -166,9 +245,10 @@ function ReaderPage() {
         />
       )}
 
+      {/* Prompt de retomar leitura */}
       {resumePrompt && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-[#1e1e1e] border border-gray-700 rounded-xl px-5 py-4 flex items-center gap-4 shadow-2xl">
-          <p className="text-white text-sm">
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-cv-card border border-cv-border rounded-xl px-5 py-4 flex items-center gap-4 shadow-2xl">
+          <p className="text-cv-text text-sm">
             Continuar da página <strong>{resumePrompt}</strong>?
           </p>
           <button
@@ -176,19 +256,20 @@ function ReaderPage() {
               setCurrentPage(resumePrompt)
               setResumePrompt(null)
             }}
-            className="bg-white text-black text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-colors"
+            className="bg-cv-accent text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-cv-accent-h transition-colors"
           >
             Continuar
           </button>
           <button
             onClick={() => setResumePrompt(null)}
-            className="text-gray-400 hover:text-white text-xs transition-colors"
+            className="text-cv-text-muted hover:text-cv-text text-xs transition-colors"
           >
             Do início
           </button>
         </div>
       )}
 
+      {/* Barra superior */}
       <div
         className={`w-full flex items-center gap-4 px-4 py-2 bg-black/80 shrink-0 transition-opacity duration-300 ${
           showUI ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -210,7 +291,7 @@ function ReaderPage() {
         </span>
 
         <button
-          onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}
+          onClick={() => setZoom((z) => Math.max(z - 0.25, 1))}
           className="text-gray-400 hover:text-white transition-colors"
         >
           <ZoomOut size={18} />
@@ -233,7 +314,8 @@ function ReaderPage() {
         </button>
       </div>
 
-      <div className="flex-1 flex items-center justify-center overflow-auto relative">
+      {/* Área da página */}
+      <div className="flex-1 flex items-center justify-center overflow-hidden relative">
         <button
           onClick={goPrev}
           disabled={currentPage === 1}
@@ -247,16 +329,16 @@ function ReaderPage() {
         <div
           className="flex items-center justify-center gap-1"
           style={{
-            transform: `scale(${zoom})`,
+            transform: `scale(${zoom}) translate(${panX / zoom}px, ${panY / zoom}px)`,
             transformOrigin: "center center",
-            transition: "transform 0.2s ease",
+            transition: "none",
           }}
         >
           <img
             key={currentPage}
             src={pageUrl(filePath, fileType, currentPage)}
             alt={`Página ${currentPage}`}
-            className="max-h-screen max-w-full object-contain"
+            className="h-screen w-auto object-contain"
           />
 
           {settings.doublePage && currentPage + 1 <= pageCount && (
@@ -264,7 +346,7 @@ function ReaderPage() {
               key={currentPage + 1}
               src={pageUrl(filePath, fileType, currentPage + 1)}
               alt={`Página ${currentPage + 1}`}
-              className="max-h-screen max-w-full object-contain"
+              className="h-screen w-auto object-contain"
             />
           )}
         </div>
@@ -280,6 +362,7 @@ function ReaderPage() {
         </button>
       </div>
 
+      {/* Barra de progresso */}
       <div
         className={`w-full h-1 bg-gray-800 shrink-0 transition-opacity duration-300 ${
           showUI ? "opacity-100" : "opacity-0"

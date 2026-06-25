@@ -18,3 +18,14 @@ export function loadProgress(filePath: string): number | null {
     return null
   }
 }
+
+export function isCompleted(filePath: string): boolean {
+  try {
+    const raw = localStorage.getItem(KEY_PREFIX + btoa(filePath))
+    if (!raw) return false
+    const { page, total } = JSON.parse(raw)
+    return total > 0 && page >= total
+  } catch {
+    return false
+  }
+}

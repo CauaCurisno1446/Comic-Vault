@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useOutletContext, useNavigate } from "react-router-dom"
 import type { SelectedFile } from "../layout/MainLayout"
+import { isCompleted } from "../hooks/useReadingProgress"
 
 interface OutletContext {
   selectedDir: string | null
@@ -13,13 +14,24 @@ interface FileItem {
   type: string
 }
 
+interface OutletContext {
+  selectedDir: string | null
+  setSelectedFile: (file: SelectedFile) => void
+  search: string
+}
+
 const API = `http://${window.location.hostname}:3001`
 
 function MainPage() {
-  const { selectedDir, setSelectedFile } = useOutletContext<OutletContext>()
+  const { selectedDir, setSelectedFile, search } =
+    useOutletContext<OutletContext>()
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+
+  const filteredFiles = files.filter((f) =>
+    f.name.toLowerCase().includes(search.toLowerCase()),
+  )
 
   async function openReader(file: FileItem) {
     const info = await fetch(
@@ -83,10 +95,17 @@ function MainPage() {
         )}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
-          {files.map((file) => (
+          {filteredFiles.map((file) => (
             <div
               key={file.path}
-              className="bg-cv-card rounded-lg overflow-hidden flex flex-col cursor-pointer lg:hover:bg-cv-card-hover lg:hover:scale-105 transition-all relative group border border-cv-border active:scale-95 lg:active:scale-100"
+              className={`
+                rounded-lg overflow-hidden flex flex-col cursor-pointer hover:scale-105 transition-all relative group border
+                ${
+                  isCompleted(file.path)
+                    ? "bg-green-900/40 border-green-700/60 hover:bg-green-900/60"
+                    : "bg-cv-card border-cv-border hover:bg-cv-card-hover"
+                }
+              `}
             >
               {/* Botão de Info - Visível no mobile, e via hover no desktop */}
               <button
@@ -99,6 +118,12 @@ function MainPage() {
               >
                 ···
               </button>
+
+              {isCompleted(file.path) && (
+                <div className="absolute top-2 left-2 z-10 bg-green-600 rounded-full w-5 h-5 flex items-center justify-center">
+                  <span className="text-white text-xs">✓</span>
+                </div>
+              )}
 
               <div
                 onClick={() => openReader(file)}
@@ -128,6 +153,12 @@ function MainPage() {
               </div>
             </div>
           ))}
+
+          {search && filteredFiles.length === 0 && (
+            <p className="text-cv-text-muted">
+              Nenhum arquivo encontrado para "{search}".
+            </p>
+          )}
         </div>
       </div>
     </div>
