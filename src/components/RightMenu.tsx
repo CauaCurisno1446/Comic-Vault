@@ -51,16 +51,18 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
   }, [])
 
   return (
-    <div className="min-h-screen w-full md:w-1/4 lg:w-1/5 flex flex-col items-center gap-4 p-4">
-      <div className="w-full max-w-xs flex flex-col items-center justify-center p-5">
+    <div className="w-full lg:min-h-screen lg:w-1/4 xl:w-1/5 flex flex-col lg:items-center gap-3 lg:gap-4 p-2 lg:p-4">
+      {/* Logo visível apenas em telas grandes para poupar espaço no mobile */}
+      <div className="hidden lg:flex w-full max-w-xs flex-col items-center justify-center p-5">
         <img
           src={lightThemes.includes(tema) ? LogoDark : Logo}
           alt="Logo"
-          className="w-[380px] object-contain"
+          className="w-[200px] xl:w-[280px] object-contain"
         />
       </div>
 
-      <div className="w-full max-w-xs bg-cv-card rounded-lg p-4">
+      {/* Histórico - Horizontal no Mobile */}
+      <div className="w-full lg:max-w-xs bg-cv-card rounded-lg p-3 lg:p-4">
         <div className="flex items-center gap-2 text-cv-text text-sm font-bold mb-3">
           <History size={18} />
           <span>Lidos recentemente</span>
@@ -71,9 +73,12 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
             Nenhum arquivo lido ainda.
           </p>
         ) : (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="flex flex-row lg:grid lg:grid-cols-3 gap-3 lg:gap-2 overflow-x-auto lg:overflow-visible snap-x pb-2 lg:pb-0 scrollbar-hide">
             {history.map((entry) => (
-              <div key={entry.path} className="flex flex-col gap-1 min-w-0">
+              <div
+                key={entry.path}
+                className="flex flex-col gap-1 min-w-[90px] lg:min-w-0 snap-start"
+              >
                 <div className="w-full aspect-[2/3] bg-cv-card-hover rounded overflow-hidden">
                   <img
                     src={`${API}/api/cover?path=${encodeURIComponent(entry.path)}&type=${entry.type}`}
@@ -84,7 +89,7 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
                     }}
                   />
                 </div>
-                <div className="w-full h-0.5 bg-cv-border rounded">
+                <div className="w-full h-0.5 bg-cv-border rounded mt-1">
                   <div
                     className="h-full bg-cv-accent rounded"
                     style={{
@@ -92,7 +97,7 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
                     }}
                   />
                 </div>
-                <p className="text-cv-text-muted text-xs truncate">
+                <p className="text-cv-text-muted text-[10px] lg:text-xs truncate">
                   {entry.name}
                 </p>
               </div>
@@ -101,7 +106,8 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
         )}
       </div>
 
-      <div className="w-full max-w-xs bg-cv-card rounded-lg p-4 flex-1">
+      {/* Informações do Arquivo */}
+      <div className="w-full lg:max-w-xs bg-cv-card rounded-lg p-3 lg:p-4 flex-1">
         <div className="flex items-center gap-2 text-cv-text text-sm font-bold mb-3">
           <FileText size={18} />
           <span>Informações</span>
@@ -109,11 +115,11 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
 
         {!selectedFile ? (
           <p className="text-cv-text-subtle text-xs">
-            Clique em ··· num arquivo para ver detalhes.
+            Toque/Clique em ··· num arquivo para ver os detalhes.
           </p>
         ) : (
-          <div className="flex flex-col gap-3">
-            <div className="w-full aspect-[2/3] bg-cv-card-hover rounded-lg overflow-hidden">
+          <div className="flex flex-row lg:flex-col gap-3 lg:gap-4 items-start">
+            <div className="w-24 lg:w-full shrink-0 aspect-[2/3] bg-cv-card-hover rounded-lg overflow-hidden">
               <img
                 src={`${API}/api/cover?path=${encodeURIComponent(selectedFile.path)}&type=${selectedFile.type}`}
                 alt={selectedFile.name}
@@ -123,17 +129,17 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
                 }}
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <p className="text-cv-text text-sm font-semibold leading-tight">
+            <div className="flex flex-col gap-2 w-full">
+              <p className="text-cv-text text-sm md:text-base font-semibold leading-tight line-clamp-3 lg:line-clamp-none">
                 {selectedFile.name}
               </p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-cv-text-muted text-xs uppercase bg-cv-card-hover px-2 py-0.5 rounded">
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                <span className="text-cv-text-muted text-[10px] md:text-xs uppercase bg-cv-card-hover px-2 py-1 rounded font-medium">
                   {selectedFile.type}
                 </span>
                 {selectedFile.pageCount && selectedFile.pageCount > 0 && (
-                  <span className="text-cv-text-muted text-xs flex items-center gap-1">
-                    <Clock size={10} />
+                  <span className="text-cv-text-muted text-[10px] md:text-xs flex items-center gap-1 font-medium bg-cv-card-hover px-2 py-1 rounded">
+                    <Clock size={12} />
                     {selectedFile.pageCount} págs.
                   </span>
                 )}
@@ -143,10 +149,11 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
         )}
       </div>
 
-      <div className="w-full max-w-xs bg-cv-card rounded-lg">
+      {/* Configurações */}
+      <div className="w-full lg:max-w-xs bg-cv-card rounded-lg">
         <button
           onClick={onOpenSettings}
-          className="w-full flex items-center gap-2 text-cv-text text-sm font-bold cursor-pointer transition-colors hover:bg-cv-card-hover p-4 rounded-lg"
+          className="w-full flex items-center justify-center lg:justify-start gap-2 text-cv-text text-sm font-bold cursor-pointer transition-colors hover:bg-cv-card-hover p-3 lg:p-4 rounded-lg active:scale-95 lg:active:scale-100"
         >
           <Settings size={20} />
           <span>Configurações</span>
