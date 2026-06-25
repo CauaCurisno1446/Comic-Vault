@@ -52,15 +52,6 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
 
   return (
     <div className="w-full lg:min-h-screen lg:w-1/4 xl:w-1/5 flex flex-col lg:items-center gap-3 lg:gap-4 p-2 lg:p-4">
-      {/* Logo visível apenas em telas grandes para poupar espaço no mobile */}
-      <div className="hidden lg:flex w-full max-w-xs flex-col items-center justify-center p-5">
-        <img
-          src={lightThemes.includes(tema) ? LogoDark : Logo}
-          alt="Logo"
-          className="w-[200px] xl:w-[280px] object-contain"
-        />
-      </div>
-
       {/* Histórico - Horizontal no Mobile */}
       <div className="w-full lg:max-w-xs bg-cv-card rounded-lg p-3 lg:p-4">
         <div className="flex items-center gap-2 text-cv-text text-sm font-bold mb-3">
@@ -150,7 +141,7 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
       </div>
 
       {/* Configurações */}
-      <div className="w-full lg:max-w-xs bg-cv-card rounded-lg">
+      <div className="w-full lg:max-w-xs bg-cv-card rounded-lg shrink-0">
         <button
           onClick={onOpenSettings}
           className="w-full flex items-center justify-center lg:justify-start gap-2 text-cv-text text-sm font-bold cursor-pointer transition-colors hover:bg-cv-card-hover p-3 lg:p-4 rounded-lg active:scale-95 lg:active:scale-100"
@@ -158,6 +149,14 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
           <Settings size={20} />
           <span>Configurações</span>
         </button>
+      </div>
+
+      <div className="w-full lg:max-w-xs flex flex-col items-center justify-center p-2 lg:p-5 mt-2 lg:mt-0 opacity-60 lg:opacity-100 pointer-events-none">
+        <img
+          src={lightThemes.includes(tema) ? LogoDark : Logo}
+          alt="Logo"
+          className="w-[120px] lg:w-[200px] xl:w-[280px] object-contain grayscale-[20%] lg:grayscale-0"
+        />
       </div>
     </div>
   )
