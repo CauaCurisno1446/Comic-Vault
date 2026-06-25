@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react"
 import { Settings, History, FileText, Clock } from "lucide-react"
 import Logo from "../static/img/logo-light.png"
+import LogoDark from "../static/img/logo.png"
 import type { SelectedFile } from "../layout/MainLayout"
 import { getHistory } from "../hooks/useHistory"
 import type { HistoryEntry } from "../hooks/useHistory"
 
 const API = `http://${window.location.hostname}:3001`
+
+const lightThemes = ["paper", "sepia", "modern-light"]
 
 interface Props {
   selectedFile: SelectedFile | null
@@ -14,6 +17,31 @@ interface Props {
 
 function RightMenu({ selectedFile, onOpenSettings }: Props) {
   const [history, setHistory] = useState<HistoryEntry[]>([])
+
+  const [tema, setTema] = useState(() => {
+    const configs = JSON.parse(
+      localStorage.getItem("comicvault-settings") || "{}",
+    )
+    return configs.theme ?? "midnight"
+  })
+
+  useEffect(() => {
+    const onSettingsChanged = (event: Event) => {
+      const customEvent = event as CustomEvent
+      setTema(customEvent.detail.theme)
+    }
+
+    window.addEventListener(
+      "cv-settings-changed",
+      onSettingsChanged as EventListener,
+    )
+
+    return () =>
+      window.removeEventListener(
+        "cv-settings-changed",
+        onSettingsChanged as EventListener,
+      )
+  }, [])
 
   useEffect(() => {
     setHistory(getHistory().slice(0, 3))
@@ -24,12 +52,14 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
 
   return (
     <div className="min-h-screen w-full md:w-1/4 lg:w-1/5 flex flex-col items-center gap-4 p-4">
-      {/* Logo */}
       <div className="w-full max-w-xs flex flex-col items-center justify-center p-5">
-        <img src={Logo} alt="Logo" className="w-[380px] object-contain" />
+        <img
+          src={lightThemes.includes(tema) ? LogoDark : Logo}
+          alt="Logo"
+          className="w-[380px] object-contain"
+        />
       </div>
 
-      {/* Histórico */}
       <div className="w-full max-w-xs bg-cv-card rounded-lg p-4">
         <div className="flex items-center gap-2 text-cv-text text-sm font-bold mb-3">
           <History size={18} />
@@ -71,7 +101,6 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
         )}
       </div>
 
-      {/* Info do arquivo */}
       <div className="w-full max-w-xs bg-cv-card rounded-lg p-4 flex-1">
         <div className="flex items-center gap-2 text-cv-text text-sm font-bold mb-3">
           <FileText size={18} />
@@ -114,7 +143,6 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
         )}
       </div>
 
-      {/* Configurações */}
       <div className="w-full max-w-xs bg-cv-card rounded-lg">
         <button
           onClick={onOpenSettings}
