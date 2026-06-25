@@ -17,19 +17,10 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
 
   useEffect(() => {
     setHistory(getHistory().slice(0, 3))
-
-    // Atualiza quando volta pro foco (ex: fechou o leitor)
     const onFocus = () => setHistory(getHistory().slice(0, 3))
     window.addEventListener("focus", onFocus)
     return () => window.removeEventListener("focus", onFocus)
   }, [])
-
-  function formatDate(ts: number) {
-    return new Date(ts).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-    })
-  }
 
   return (
     <div className="min-h-screen w-full md:w-1/4 lg:w-1/5 flex flex-col items-center gap-4 p-4">
@@ -38,21 +29,22 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
         <img src={Logo} alt="Logo" className="w-[380px] object-contain" />
       </div>
 
-      {/* Histórico de leitura */}
-      <div className="w-full max-w-xs bg-[#121212] rounded-lg p-4">
-        <div className="flex items-center gap-2 text-white text-sm font-bold mb-3">
+      {/* Histórico */}
+      <div className="w-full max-w-xs bg-cv-card rounded-lg p-4">
+        <div className="flex items-center gap-2 text-cv-text text-sm font-bold mb-3">
           <History size={18} />
           <span>Lidos recentemente</span>
         </div>
 
         {history.length === 0 ? (
-          <p className="text-gray-600 text-xs">Nenhum arquivo lido ainda.</p>
+          <p className="text-cv-text-subtle text-xs">
+            Nenhum arquivo lido ainda.
+          </p>
         ) : (
           <div className="grid grid-cols-3 gap-2">
             {history.map((entry) => (
               <div key={entry.path} className="flex flex-col gap-1 min-w-0">
-                {/* Capa */}
-                <div className="w-full aspect-[2/3] bg-[#282828] rounded overflow-hidden">
+                <div className="w-full aspect-[2/3] bg-cv-card-hover rounded overflow-hidden">
                   <img
                     src={`${API}/api/cover?path=${encodeURIComponent(entry.path)}&type=${entry.type}`}
                     alt={entry.name}
@@ -62,37 +54,37 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
                     }}
                   />
                 </div>
-                {/* Progresso */}
-                <div className="w-full h-0.5 bg-gray-800 rounded">
+                <div className="w-full h-0.5 bg-cv-border rounded">
                   <div
-                    className="h-full bg-white rounded"
+                    className="h-full bg-cv-accent rounded"
                     style={{
                       width: `${entry.pageCount > 0 ? (entry.currentPage / entry.pageCount) * 100 : 0}%`,
                     }}
                   />
                 </div>
-                <p className="text-gray-500 text-xs truncate">{entry.name}</p>
+                <p className="text-cv-text-muted text-xs truncate">
+                  {entry.name}
+                </p>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Info do arquivo selecionado */}
-      <div className="w-full max-w-xs bg-[#121212] rounded-lg p-4 flex-1">
-        <div className="flex items-center gap-2 text-white text-sm font-bold mb-3">
+      {/* Info do arquivo */}
+      <div className="w-full max-w-xs bg-cv-card rounded-lg p-4 flex-1">
+        <div className="flex items-center gap-2 text-cv-text text-sm font-bold mb-3">
           <FileText size={18} />
           <span>Informações</span>
         </div>
 
         {!selectedFile ? (
-          <p className="text-gray-600 text-xs">
-            Clique num arquivo para ver detalhes.
+          <p className="text-cv-text-subtle text-xs">
+            Clique em ··· num arquivo para ver detalhes.
           </p>
         ) : (
           <div className="flex flex-col gap-3">
-            {/* Capa grande */}
-            <div className="w-full aspect-[2/3] bg-[#282828] rounded-lg overflow-hidden">
+            <div className="w-full aspect-[2/3] bg-cv-card-hover rounded-lg overflow-hidden">
               <img
                 src={`${API}/api/cover?path=${encodeURIComponent(selectedFile.path)}&type=${selectedFile.type}`}
                 alt={selectedFile.name}
@@ -102,17 +94,16 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
                 }}
               />
             </div>
-
             <div className="flex flex-col gap-1">
-              <p className="text-white text-sm font-semibold leading-tight">
+              <p className="text-cv-text text-sm font-semibold leading-tight">
                 {selectedFile.name}
               </p>
               <div className="flex items-center gap-2 mt-1">
-                <span className="text-gray-500 text-xs uppercase bg-gray-800 px-2 py-0.5 rounded">
+                <span className="text-cv-text-muted text-xs uppercase bg-cv-card-hover px-2 py-0.5 rounded">
                   {selectedFile.type}
                 </span>
                 {selectedFile.pageCount && selectedFile.pageCount > 0 && (
-                  <span className="text-gray-500 text-xs flex items-center gap-1">
+                  <span className="text-cv-text-muted text-xs flex items-center gap-1">
                     <Clock size={10} />
                     {selectedFile.pageCount} págs.
                   </span>
@@ -124,10 +115,10 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
       </div>
 
       {/* Configurações */}
-      <div className="w-full max-w-xs bg-[#121212] rounded-lg">
+      <div className="w-full max-w-xs bg-cv-card rounded-lg">
         <button
           onClick={onOpenSettings}
-          className="w-full flex items-center gap-2 text-white text-sm font-bold cursor-pointer transition-colors hover:bg-gray-800 p-4 rounded-lg"
+          className="w-full flex items-center gap-2 text-cv-text text-sm font-bold cursor-pointer transition-colors hover:bg-cv-card-hover p-4 rounded-lg"
         >
           <Settings size={20} />
           <span>Configurações</span>

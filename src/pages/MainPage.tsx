@@ -27,9 +27,7 @@ function MainPage() {
     )
       .then((r) => r.json())
       .catch(() => ({ pageCount: 0 }))
-
     setSelectedFile({ ...file, pageCount: info.pageCount })
-
     const params = new URLSearchParams({
       path: file.path,
       type: file.type,
@@ -44,7 +42,6 @@ function MainPage() {
     )
       .then((r) => r.json())
       .catch(() => ({ pageCount: 0 }))
-
     setSelectedFile({ ...file, pageCount: info.pageCount })
   }
 
@@ -61,8 +58,8 @@ function MainPage() {
   }, [selectedDir])
 
   return (
-    <div className="w-full h-full bg-[#121212] rounded-lg flex flex-col overflow-hidden">
-      <div className="w-full flex items-center gap-2 text-white text-lg font-bold p-4 shrink-0 border-b border-gray-800">
+    <div className="w-full h-full bg-cv-card rounded-lg flex flex-col overflow-hidden">
+      <div className="w-full flex items-center gap-2 text-cv-text text-lg font-bold p-4 shrink-0 border-b border-cv-border">
         <span>
           {selectedDir ? selectedDir.split("\\").pop() : "Selecione uma pasta"}
         </span>
@@ -70,11 +67,13 @@ function MainPage() {
 
       <div className="flex-1 p-4 overflow-y-auto">
         {!selectedDir && (
-          <p className="text-gray-500">Selecione uma pasta na biblioteca.</p>
+          <p className="text-cv-text-muted">
+            Selecione uma pasta na biblioteca.
+          </p>
         )}
-        {loading && <p className="text-gray-500">Carregando...</p>}
+        {loading && <p className="text-cv-text-muted">Carregando...</p>}
         {!loading && selectedDir && files.length === 0 && (
-          <p className="text-gray-500">
+          <p className="text-cv-text-muted">
             Nenhum arquivo encontrado nessa pasta.
           </p>
         )}
@@ -83,7 +82,7 @@ function MainPage() {
           {files.map((file) => (
             <div
               key={file.path}
-              className="bg-[#1e1e1e] rounded-lg overflow-hidden flex flex-col cursor-pointer hover:bg-[#282828] hover:scale-105 transition-all relative group"
+              className="bg-cv-card rounded-lg overflow-hidden flex flex-col cursor-pointer hover:bg-cv-card-hover hover:scale-105 transition-all relative group border border-cv-border"
             >
               {/* Botão ... */}
               <button
@@ -91,15 +90,14 @@ function MainPage() {
                   e.stopPropagation()
                   selectInfo(file)
                 }}
-                className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-black/60 text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-black/90"
+                className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-black/60 text-cv-text text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-black/90"
               >
                 ···
               </button>
 
-              {/* Capa — abre o leitor */}
               <div
                 onClick={() => openReader(file)}
-                className="w-full aspect-[2/3] bg-[#282828] overflow-hidden"
+                className="w-full aspect-[2/3] bg-cv-card-hover overflow-hidden"
               >
                 <img
                   src={`${API}/api/cover?path=${encodeURIComponent(file.path)}&type=${file.type}`}
@@ -112,12 +110,11 @@ function MainPage() {
                 />
               </div>
 
-              {/* Info — abre o leitor */}
               <div onClick={() => openReader(file)} className="p-2">
-                <span className="text-white text-xs font-medium line-clamp-2 leading-tight">
+                <span className="text-cv-text text-xs font-medium line-clamp-2 leading-tight">
                   {file.name}
                 </span>
-                <span className="text-gray-500 text-xs uppercase mt-1 block">
+                <span className="text-cv-text-muted text-xs uppercase mt-1 block">
                   {file.type}
                 </span>
               </div>

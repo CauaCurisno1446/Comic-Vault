@@ -19,7 +19,7 @@ function MainLayout() {
   const { settings, update } = useSettings()
 
   return (
-    <div className="app flex flex-col md:flex-row min-h-screen bg-black">
+    <div className="app flex flex-col md:flex-row min-h-screen bg-cv-sidebar">
       <LeftMenu onSelectDir={setSelectedDir} selectedDir={selectedDir} />
 
       <main className="content flex-1 p-4 overflow-hidden">

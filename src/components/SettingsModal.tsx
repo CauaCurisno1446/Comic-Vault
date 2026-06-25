@@ -21,19 +21,23 @@ function Toggle({
   onChange: (v: boolean) => void
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3 border-b border-gray-800">
+    <div className="flex items-center justify-between gap-4 py-3 border-b border-cv-border">
       <div>
-        <p className="text-white text-sm font-medium">{label}</p>
+        <p className="text-cv-text text-sm font-medium">{label}</p>
         {description && (
-          <p className="text-gray-500 text-xs mt-0.5">{description}</p>
+          <p className="text-cv-text-muted text-xs mt-0.5">{description}</p>
         )}
       </div>
       <button
         onClick={() => onChange(!value)}
-        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${value ? "bg-white" : "bg-gray-700"}`}
+        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
+          value ? "bg-cv-accent" : "bg-cv-border"
+        }`}
       >
         <div
-          className={`absolute top-1 w-4 h-4 rounded-full transition-all ${value ? "left-6 bg-black" : "left-1 bg-gray-400"}`}
+          className={`absolute top-1 w-4 h-4 rounded-full transition-all ${
+            value ? "left-6 bg-white" : "left-1 bg-cv-text-muted"
+          }`}
         />
       </button>
     </div>
@@ -83,13 +87,15 @@ export function SettingsModal({
       }}
       className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center"
     >
-      <div className="bg-[#1e1e1e] rounded-xl w-full max-w-md mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-cv-card rounded-xl w-full max-w-md mx-4 shadow-2xl max-h-[90vh] overflow-y-auto border border-cv-border">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800 sticky top-0 bg-[#1e1e1e]">
-          <h2 className="text-white font-semibold text-base">Configurações</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-cv-border sticky top-0 bg-cv-card">
+          <h2 className="text-cv-text font-semibold text-base">
+            Configurações
+          </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            className="text-cv-text-muted hover:text-cv-text transition-colors"
           >
             <X size={20} />
           </button>
@@ -97,7 +103,7 @@ export function SettingsModal({
 
         <div className="px-6 py-2">
           {/* Leitor */}
-          <p className="text-gray-500 text-xs uppercase tracking-widest mt-4 mb-1">
+          <p className="text-cv-text-subtle text-xs uppercase tracking-widest mt-4 mb-1">
             Leitor
           </p>
 
@@ -115,7 +121,7 @@ export function SettingsModal({
           />
 
           {/* Tema */}
-          <p className="text-gray-500 text-xs uppercase tracking-widest mt-6 mb-3">
+          <p className="text-cv-text-subtle text-xs uppercase tracking-widest mt-6 mb-3">
             Tema
           </p>
           <div className="grid grid-cols-2 gap-2 pb-2">
@@ -130,8 +136,8 @@ export function SettingsModal({
                 }
                 className={`py-2 px-3 rounded-lg text-sm text-left transition-colors ${
                   (settings as any).theme === t.id
-                    ? "bg-white text-black font-semibold"
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                    ? "bg-cv-accent text-white font-semibold"
+                    : "bg-cv-card-hover text-cv-text-muted hover:text-cv-text"
                 }`}
               >
                 {t.label}
@@ -142,7 +148,7 @@ export function SettingsModal({
           {/* Diretório raiz */}
           {showDirConfig && (
             <>
-              <p className="text-gray-500 text-xs uppercase tracking-widest mt-6 mb-3">
+              <p className="text-cv-text-subtle text-xs uppercase tracking-widest mt-6 mb-3">
                 Biblioteca
               </p>
               <div className="flex gap-2 pb-4">
@@ -150,11 +156,11 @@ export function SettingsModal({
                   value={libraryPath}
                   onChange={(e) => setLibraryPath(e.target.value)}
                   placeholder="Ex: E:/HQ'S"
-                  className="flex-1 bg-gray-800 text-white text-sm px-3 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-gray-500"
+                  className="flex-1 bg-cv-card-hover text-cv-text text-sm px-3 py-2 rounded-lg border border-cv-border focus:outline-none focus:border-cv-accent"
                 />
                 <button
                   onClick={saveLibraryPath}
-                  className="bg-white text-black px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors shrink-0"
+                  className="bg-cv-accent text-white px-3 py-2 rounded-lg hover:bg-cv-accent-h transition-colors shrink-0"
                 >
                   <FolderOpen size={16} />
                 </button>
@@ -164,10 +170,10 @@ export function SettingsModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-800">
+        <div className="px-6 py-4 border-t border-cv-border">
           <button
             onClick={onClose}
-            className="w-full bg-white text-black text-sm font-semibold py-2 rounded-lg hover:bg-gray-200 transition-colors"
+            className="w-full bg-cv-accent text-white text-sm font-semibold py-2 rounded-lg hover:bg-cv-accent-h transition-colors"
           >
             Fechar
           </button>
