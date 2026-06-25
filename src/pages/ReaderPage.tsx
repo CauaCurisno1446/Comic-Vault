@@ -11,6 +11,7 @@ import {
 import { useSettings } from "../hooks/useSettings"
 import { saveProgress, loadProgress } from "../hooks/useReadingProgress"
 import { SettingsModal } from "../components/SettingsModal"
+import { addToHistory } from "../hooks/useHistory"
 
 const API = `http://${window.location.hostname}:3001`
 const PREFETCH = 3
@@ -35,6 +36,11 @@ function ReaderPage() {
   const [showSettings, setShowSettings] = useState(false)
   const [resumePrompt, setResumePrompt] = useState<number | null>(null)
   const [zoom, setZoom] = useState(1)
+
+  useEffect(() => {
+    document.body.classList.add("reader-open")
+    return () => document.body.classList.remove("reader-open")
+  }, [])
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>
@@ -70,9 +76,17 @@ function ReaderPage() {
       })
   }, [filePath, fileType])
 
+  // Salva progresso ao trocar página
   useEffect(() => {
     if (!settings.saveProgress || !filePath || pageCount === 0) return
     saveProgress(filePath, currentPage, pageCount)
+    addToHistory({
+      path: filePath,
+      name: title,
+      type: fileType,
+      currentPage,
+      pageCount,
+    })
   }, [currentPage, filePath, pageCount, settings.saveProgress])
 
   useEffect(() => {
@@ -124,7 +138,26 @@ function ReaderPage() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col select-none">
+    <div
+      className="fixed inset-0 z-50 bg-black flex flex-col select-none touch-none"
+      onTouchStart={(e) => {
+        const touch = e.touches[0]
+        ;(e.currentTarget as HTMLDivElement).dataset.touchX = String(
+          touch.clientX,
+        )
+      }}
+      onTouchEnd={(e) => {
+        const startX = Number(
+          (e.currentTarget as HTMLDivElement).dataset.touchX ?? 0,
+        )
+        const endX = e.changedTouches[0].clientX
+        const diff = startX - endX
+        if (Math.abs(diff) > 50) {
+          if (diff > 0) goNext()
+          else goPrev()
+        }
+      }}
+    >
       {showSettings && (
         <SettingsModal
           settings={settings}
@@ -224,7 +257,6 @@ function ReaderPage() {
             src={pageUrl(filePath, fileType, currentPage)}
             alt={`Página ${currentPage}`}
             className="max-h-screen max-w-full object-contain"
-            onClick={goNext}
           />
 
           {settings.doublePage && currentPage + 1 <= pageCount && (
@@ -233,7 +265,6 @@ function ReaderPage() {
               src={pageUrl(filePath, fileType, currentPage + 1)}
               alt={`Página ${currentPage + 1}`}
               className="max-h-screen max-w-full object-contain"
-              onClick={goNext}
             />
           )}
         </div>
