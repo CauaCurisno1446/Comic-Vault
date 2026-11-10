@@ -31,7 +31,7 @@ function LeftMenu({
   const [selecionada, setSelecionada] = useState<Dir | null>(null)
 
   // campos do modal criar pasta de hq
-  const [nome, setNome] = useState("")
+  const [nomePasta, setNomePasta] = useState("")
   const [confirmar, setConfirmar] = useState("")
 
   // campos do modal editar pasta de hq
@@ -73,10 +73,6 @@ function LeftMenu({
   }
 
   async function criarPasta() {
-    const name = prompt("Nome da nova pasta:")
-
-    if (!name?.trim()) return
-
     try {
       const response = await fetch(
         `http://${window.location.hostname}:3001/api/dirs`,
@@ -86,7 +82,7 @@ function LeftMenu({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            name: name.trim(),
+            name: nomePasta.trim(),
             parentPath: "",
           }),
         },
@@ -98,13 +94,14 @@ function LeftMenu({
         return
       }
 
-      // Atualiza a biblioteca
-      // sem precisar atualizar a página.
+      // Atualiza a biblioteca sem precisar atualizar a página.
       const dirsResponse = await fetch(
         `http://${window.location.hostname}:3001/api/dirs`,
       )
 
       setDirs(await dirsResponse.json())
+      modalCriar.fechar()
+      setNomePasta("")
     } catch (error) {
       console.error("Erro ao criar pasta:", error)
       alert("Não foi possível criar a pasta.")
@@ -119,10 +116,13 @@ function LeftMenu({
             type="text"
             placeholder="Nome da nova pasta..."
             className="flex-1 bg-cv-card-hover text-cv-text text-sm px-3 py-1.5 rounded-lg border border-cv-border focus:outline-none focus:border-cv-accent duration-200"
+            value={nomePasta}
+            onChange={(e) => setNomePasta(e.target.value)}
           />
           <button
             type="submit"
             className="px-5 py-2 text-sm bg-[var(--cv-accent)] hover:bg-[var(--cv-accent-hover)] text-[var(--cv-text)] font-bold rounded-lg transition-colors cursor-pointer"
+            onClick={criarPasta}
           >
             Salvar
           </button>
