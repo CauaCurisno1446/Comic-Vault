@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: projeto-frontend
+    container_name: comic-frontend
     ports:
       - "5173:5173"
     volumes:
@@ -15,10 +15,13 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: projeto-server
+    container_name: comic-server
     ports:
       - "3001:3001"
     volumes:
       - ./server:/app
       - /app/node_modules
+      - "${COMICS_DIR}:/data"
+    environment:
+      - COMICS_DIR=/data
     command: npm run dev

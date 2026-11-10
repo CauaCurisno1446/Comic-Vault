@@ -9,29 +9,61 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-// GET /api/dirs?path=/caminho/da/biblioteca
-app.get("/api/dirs", (req, res) => {
-  const dirPath = req.query.path as string
+const comicsDir = path.resolve(
+  process.env.COMICS_DIR || "./comics"
+)
 
-  if (!dirPath || !fs.existsSync(dirPath)) {
-    res.status(400).json({ error: "Caminho inválido" })
-    return
+function resolveLibraryPath(relativePath = "") {
+  const resolved = path.resolve(comicsDir, relativePath)
+
+  const relative = path.relative(comicsDir, resolved)
+
+  // Impede sair da pasta da biblioteca.
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error("Caminho fora da biblioteca")
   }
 
-  const entries = fs.readdirSync(dirPath, { withFileTypes: true })
+  return resolved
+}
 
-  const dirs = entries
-    .filter((e) => e.isDirectory() && !e.name.startsWith("."))
-    .map((e) => ({
-      name: e.name,
-      path: path.join(dirPath, e.name),
-    }))
+// GET /api/dirs?path=/caminho/da/biblioteca
 
-  res.json(dirs)
+app.get("/api/dirs", (req, res) => {
+  try {
+    const dirPath = resolveLibraryPath(
+      (req.query.path as string) || ""
+    )
+
+    if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
+      res.status(400).json({ error: "Diretório inválido" })
+      return
+    }
+
+    const entries = fs.readdirSync(dirPath, {
+      withFileTypes: true,
+    })
+
+    const dirs = entries
+      .filter((e) => e.isDirectory() && !e.name.startsWith("."))
+      .map((e) => ({
+        name: e.name,
+        path: path.posix.join(
+          (req.query.path as string) || "",
+          e.name
+        ),
+      }))
+
+    res.json(dirs)
+  } catch (err) {
+    res.status(400).json({ error: "Caminho inválido" })
+  }
 })
 
+
 app.get("/api/files", (req, res) => {
-  const dirPath = req.query.path as string
+  const dirPath = resolveLibraryPath(
+    (req.query.path as string) || ""
+  )
 
   if (!dirPath || !fs.existsSync(dirPath)) {
     res.status(400).json({ error: "Caminho inválido" })
@@ -57,7 +89,9 @@ app.get("/api/files", (req, res) => {
 })
 
 app.get("/api/cover", async (req, res) => {
-  const filePath = req.query.path as string
+  const filePath = resolveLibraryPath(
+    req.query.path as string
+  )
   const fileType = req.query.type as string
 
   if (!filePath || !fileType || !fs.existsSync(filePath)) {
@@ -76,7 +110,9 @@ app.get("/api/cover", async (req, res) => {
 })
 
 app.get("/api/read/info", async (req, res) => {
-  const filePath = req.query.path as string
+  const filePath = resolveLibraryPath(
+    req.query.path as string
+  )
   const fileType = req.query.type as string
 
   if (!filePath || !fs.existsSync(filePath)) {
@@ -90,7 +126,9 @@ app.get("/api/read/info", async (req, res) => {
 
 // Retorna a imagem de uma página específica
 app.get("/api/read/page", async (req, res) => {
-  const filePath = req.query.path as string
+  const filePath = resolveLibraryPath(
+    req.query.path as string
+  )
   const fileType = req.query.type as string
   const pageNum = parseInt(req.query.page as string)
 

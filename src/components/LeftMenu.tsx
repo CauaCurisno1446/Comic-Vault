@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react"
 import { Home, Search, Book, Plus, Folder, X } from "lucide-react"
 
-const LIBRARY_PATH = "E:/HQ'S/"
-
 interface Dir {
   name: string
   path: string
@@ -24,18 +22,33 @@ function LeftMenu({
   const [dirs, setDirs] = useState<Dir[]>([])
   const [loading, setLoading] = useState(true)
   const [showSearch, setShowSearch] = useState(false)
-
+  
   useEffect(() => {
     fetch(
-      `http://${window.location.hostname}:3001/api/dirs?path=${encodeURIComponent(LIBRARY_PATH)}`,
+      `http://${window.location.hostname}:3001/api/dirs`
     )
-      .then((r) => r.json())
-      .then((data) => {
-        setDirs(data)
-        setLoading(false)
+      .then((r) => {
+        if (!r.ok) {
+          throw new Error("Erro ao carregar diretórios")
+        }
+
+        return r.json()
       })
-      .catch(() => setLoading(false))
+      .then((data) => {
+        if (!Array.isArray(data)) {
+          throw new Error("Resposta inválida da API")
+        }
+
+        setDirs(data)
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar biblioteca:", err)
+        setDirs([])
+      })
+      .finally(() => setLoading(false))
   }, [])
+
+  
 
   function handleHomeClick() {
     onSelectDir(null)

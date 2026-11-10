@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.env
+*.env
+
+# Diretório de HQs
+quadrinhos
+.quadrinhos
