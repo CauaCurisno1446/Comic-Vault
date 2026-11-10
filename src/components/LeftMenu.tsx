@@ -7,9 +7,9 @@ import {
   Folder,
   X,
   EllipsisVertical,
+  SquarePen,
 } from "lucide-react"
 import Modal from "./Modal"
-import ModalConfirmar from "./ModalConfirmar"
 import { useModal } from "../hooks/useModal"
 
 interface Dir {
@@ -209,7 +209,11 @@ function LeftMenu({
   return (
     <div className="w-full lg:min-h-screen lg:w-1/4 xl:w-1/5 flex flex-col lg:items-center gap-3 lg:gap-4 p-2 lg:p-4">
       {modalCriar.aberto && (
-        <Modal titulo="Adicionar Pasta de HQ" onClose={modalCriar.fechar}>
+        <Modal
+          icone={<Folder size={20} />}
+          titulo="Adicionar Pasta de HQ"
+          onClose={modalCriar.fechar}
+        >
           <input
             type="text"
             placeholder="Nome da nova pasta..."
@@ -222,13 +226,17 @@ function LeftMenu({
             className="px-5 py-2 text-sm bg-[var(--cv-accent)] hover:bg-[var(--cv-accent-hover)] text-[var(--cv-text)] font-bold rounded-lg transition-colors cursor-pointer"
             onClick={criarPasta}
           >
-            Salvar
+            Adicionar
           </button>
         </Modal>
       )}
 
       {modalEditar.aberto && (
-        <Modal titulo="Editar Pasta" onClose={modalEditar.fechar}>
+        <Modal
+          icone={<SquarePen size={20} />}
+          titulo="Editar Pasta"
+          onClose={modalEditar.fechar}
+        >
           <input
             type="text"
             placeholder="Nome da nova pasta..."
@@ -236,20 +244,23 @@ function LeftMenu({
             value={nomeEditar}
             onChange={(e) => setNomeEditar(e.target.value)}
           />
-          <button
-            type="submit"
-            className="px-5 py-2 text-sm bg-[var(--cv-accent)] hover:bg-[var(--cv-accent-hover)] text-[var(--cv-text)] font-bold rounded-lg transition-colors cursor-pointer"
-            onClick={excluirPasta}
-          >
-            excluir
-          </button>
-          <button
-            type="submit"
-            className="px-5 py-2 text-sm bg-[var(--cv-accent)] hover:bg-[var(--cv-accent-hover)] text-[var(--cv-text)] font-bold rounded-lg transition-colors cursor-pointer"
-            onClick={editarPasta}
-          >
-            Salvar
-          </button>
+
+          <div className="flex justify-end gap-3">
+            <button
+              type="submit"
+              className="px-5 py-2 text-sm bg-cv-card hover:bg-cv-card-hover text-[var(--cv-text)] font-bold rounded-lg transition-colors cursor-pointer"
+              onClick={excluirPasta}
+            >
+              Excluir
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 text-sm bg-[var(--cv-accent)] hover:bg-[var(--cv-accent-hover)] text-[var(--cv-text)] font-bold rounded-lg transition-colors cursor-pointer"
+              onClick={editarPasta}
+            >
+              Salvar
+            </button>
+          </div>
         </Modal>
       )}
 
