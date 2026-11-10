@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react"
 import { Home, Search, Book, Plus, Folder, X, Settings } from "lucide-react"
+import Modal from "./Modal"
+import ModalConfirmar from "./ModalConfirmar"
+import { useModal } from "../hooks/useModal"
 
 interface Dir {
   name: string
@@ -22,11 +25,21 @@ function LeftMenu({
   const [dirs, setDirs] = useState<Dir[]>([])
   const [loading, setLoading] = useState(true)
   const [showSearch, setShowSearch] = useState(false)
-  
+
+  const modalCriar = useModal()
+  const modalEditar = useModal()
+  const [selecionada, setSelecionada] = useState<Dir | null>(null)
+
+  // campos do modal criar pasta de hq
+  const [nome, setNome] = useState("")
+  const [confirmar, setConfirmar] = useState("")
+
+  // campos do modal editar pasta de hq
+  const [nomeEditar, setNomeEditar] = useState("")
+  const [idParaDeletar, setIdParaDeletar] = useState<number | null>(null)
+
   useEffect(() => {
-    fetch(
-      `http://${window.location.hostname}:3001/api/dirs`
-    )
+    fetch(`http://${window.location.hostname}:3001/api/dirs`)
       .then((r) => {
         if (!r.ok) {
           throw new Error("Erro ao carregar diretórios")
@@ -60,46 +73,61 @@ function LeftMenu({
   }
 
   async function criarPasta() {
-  const name = prompt("Nome da nova pasta:")
+    const name = prompt("Nome da nova pasta:")
 
-  if (!name?.trim()) return
+    if (!name?.trim()) return
 
-  try {
-    const response = await fetch(
-      `http://${window.location.hostname}:3001/api/dirs`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+    try {
+      const response = await fetch(
+        `http://${window.location.hostname}:3001/api/dirs`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: name.trim(),
+            parentPath: "",
+          }),
         },
-        body: JSON.stringify({
-          name: name.trim(),
-          parentPath: "",
-        }),
+      )
+
+      if (!response.ok) {
+        const error = await response.json()
+        alert(error.error)
+        return
       }
-    )
 
-    if (!response.ok) {
-      const error = await response.json()
-      alert(error.error)
-      return
+      // Atualiza a biblioteca
+      // sem precisar atualizar a página.
+      const dirsResponse = await fetch(
+        `http://${window.location.hostname}:3001/api/dirs`,
+      )
+
+      setDirs(await dirsResponse.json())
+    } catch (error) {
+      console.error("Erro ao criar pasta:", error)
+      alert("Não foi possível criar a pasta.")
     }
-
-    // Atualiza a biblioteca
-    // sem precisar atualizar a página.
-    const dirsResponse = await fetch(
-      `http://${window.location.hostname}:3001/api/dirs`
-    )
-
-    setDirs(await dirsResponse.json())
-  } catch (error) {
-    console.error("Erro ao criar pasta:", error)
-    alert("Não foi possível criar a pasta.")
   }
-}
 
   return (
     <div className="w-full lg:min-h-screen lg:w-1/4 xl:w-1/5 flex flex-col lg:items-center gap-3 lg:gap-4 p-2 lg:p-4">
+      {modalCriar.aberto && (
+        <Modal titulo="Adicionar Pasta de HQ" onClose={modalCriar.fechar}>
+          <input
+            type="text"
+            placeholder="Nome da nova pasta..."
+            className="flex-1 bg-cv-card-hover text-cv-text text-sm px-3 py-1.5 rounded-lg border border-cv-border focus:outline-none focus:border-cv-accent duration-200"
+          />
+          <button
+            type="submit"
+            className="px-5 py-2 text-sm bg-[var(--cv-accent)] hover:bg-[var(--cv-accent-hover)] text-[var(--cv-text)] font-bold rounded-lg transition-colors cursor-pointer"
+          >
+            Salvar
+          </button>
+        </Modal>
+      )}
       {/* Ações topo */}
       <div className="w-full lg:max-w-xs flex flex-col bg-cv-card rounded-lg p-2 lg:p-3 gap-1">
         <div
@@ -155,7 +183,7 @@ function LeftMenu({
           <span>Biblioteca</span>
           <span className="ml-auto">
             <div
-              onClick={criarPasta}
+              onClick={modalCriar.abrir}
               className="text-cv-text rounded-full w-8 h-8 flex items-center justify-center hover:bg-cv-card-hover cursor-pointer transition-colors"
             >
               <Plus size={20} />

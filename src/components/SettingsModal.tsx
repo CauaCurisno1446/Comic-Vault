@@ -95,7 +95,7 @@ export function SettingsModal({
           </h2>
           <button
             onClick={onClose}
-            className="text-cv-text-muted hover:text-cv-text transition-colors"
+            className="text-cv-text-muted hover:text-cv-text transition-colors cursor-pointer"
           >
             <X size={20} />
           </button>
@@ -134,7 +134,7 @@ export function SettingsModal({
                     t.id as Settings[keyof Settings],
                   )
                 }
-                className={`py-2 px-3 rounded-lg text-sm text-left transition-colors ${
+                className={`py-2 px-3 cursor-pointer rounded-lg text-sm text-left transition-colors ${
                   (settings as any).theme === t.id
                     ? "bg-cv-accent text-white font-semibold"
                     : "bg-cv-card-hover text-cv-text-muted hover:text-cv-text"
@@ -173,7 +173,7 @@ export function SettingsModal({
         <div className="px-6 py-4 border-t border-cv-border">
           <button
             onClick={onClose}
-            className="w-full bg-cv-accent text-white text-sm font-semibold py-2 rounded-lg hover:bg-cv-accent-h transition-colors"
+            className="w-full bg-cv-accent text-white text-sm font-semibold py-2 rounded-lg hover:bg-cv-accent-h transition-colors cursor-pointer"
           >
             Fechar
           </button>
