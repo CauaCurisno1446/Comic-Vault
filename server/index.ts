@@ -10,7 +10,7 @@ app.use(cors())
 app.use(express.json())
 
 const comicsDir = path.resolve(
-  process.env.COMICS_DIR || "./comics"
+  process.env.COMICS_DIR || "../Comics"
 )
 
 function resolveLibraryPath(relativePath = "") {
@@ -27,7 +27,6 @@ function resolveLibraryPath(relativePath = "") {
 }
 
 // GET /api/dirs?path=/caminho/da/biblioteca
-
 app.get("/api/dirs", (req, res) => {
   try {
     const dirPath = resolveLibraryPath(
@@ -59,6 +58,49 @@ app.get("/api/dirs", (req, res) => {
   }
 })
 
+// Criar diretório
+app.post("/api/dirs", (req, res) => {
+  try {
+    const { name, parentPath = "" } = req.body
+
+    if (
+      typeof name !== "string" ||
+      !name.trim() ||
+      name === "." ||
+      name === ".." ||
+      /[\/\\:*?"<>|]/.test(name)
+    ) {
+      res.status(400).json({ error: "Nome de pasta inválido" })
+      return
+    }
+
+    const parentDir = resolveLibraryPath(parentPath)
+
+    if (
+      !fs.existsSync(parentDir) ||
+      !fs.statSync(parentDir).isDirectory()
+    ) {
+      res.status(400).json({ error: "Diretório pai inválido" })
+      return
+    }
+
+    const newDir = path.join(parentDir, name.trim())
+
+    if (fs.existsSync(newDir)) {
+      res.status(409).json({ error: "Essa pasta já existe" })
+      return
+    }
+
+    fs.mkdirSync(newDir)
+
+    res.status(201).json({
+      message: "Pasta criada com sucesso",
+      name: name.trim(),
+    })
+  } catch (err) {
+    res.status(400).json({ error: "Não foi possível criar a pasta" })
+  }
+})
 
 app.get("/api/files", (req, res) => {
   const dirPath = resolveLibraryPath(

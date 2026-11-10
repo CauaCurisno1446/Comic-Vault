@@ -21,7 +21,7 @@ services:
     volumes:
       - ./server:/app
       - /app/node_modules
-      - "${COMICS_DIR}:/data"
+      - ./Comics:/data
     environment:
       - COMICS_DIR=/data
     command: npm run dev

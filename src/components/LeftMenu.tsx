@@ -48,8 +48,6 @@ function LeftMenu({
       .finally(() => setLoading(false))
   }, [])
 
-  
-
   function handleHomeClick() {
     onSelectDir(null)
     onSearch("")
@@ -60,6 +58,45 @@ function LeftMenu({
     setShowSearch((s) => !s)
     if (showSearch) onSearch("")
   }
+
+  async function criarPasta() {
+  const name = prompt("Nome da nova pasta:")
+
+  if (!name?.trim()) return
+
+  try {
+    const response = await fetch(
+      `http://${window.location.hostname}:3001/api/dirs`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          parentPath: "",
+        }),
+      }
+    )
+
+    if (!response.ok) {
+      const error = await response.json()
+      alert(error.error)
+      return
+    }
+
+    // Atualiza a biblioteca
+    // sem precisar atualizar a página.
+    const dirsResponse = await fetch(
+      `http://${window.location.hostname}:3001/api/dirs`
+    )
+
+    setDirs(await dirsResponse.json())
+  } catch (error) {
+    console.error("Erro ao criar pasta:", error)
+    alert("Não foi possível criar a pasta.")
+  }
+}
 
   return (
     <div className="w-full lg:min-h-screen lg:w-1/4 xl:w-1/5 flex flex-col lg:items-center gap-3 lg:gap-4 p-2 lg:p-4">
@@ -117,7 +154,10 @@ function LeftMenu({
           <Book size={20} />
           <span>Biblioteca</span>
           <span className="ml-auto">
-            <div className="text-cv-text rounded-full w-8 h-8 flex items-center justify-center hover:bg-cv-card-hover cursor-pointer transition-colors">
+            <div
+              onClick={criarPasta}
+              className="text-cv-text rounded-full w-8 h-8 flex items-center justify-center hover:bg-cv-card-hover cursor-pointer transition-colors"
+            >
               <Plus size={20} />
             </div>
           </span>
