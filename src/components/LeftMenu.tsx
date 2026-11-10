@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Home, Search, Book, Plus, Folder, X } from "lucide-react"
+import { Home, Search, Book, Plus, Folder, X, Settings } from "lucide-react"
 
 interface Dir {
   name: string
@@ -188,6 +188,10 @@ function LeftMenu({
               <span className="truncate max-w-[120px] lg:max-w-none">
                 {dir.name}
               </span>
+
+              <div className="w-8 h-8 ml-auto flex items-center justify-center rounded-lg hover:bg-[var(--cv-accent-hover)] duration-200">
+                <Settings size={20} />
+              </div>
             </div>
           ))}
         </div>
