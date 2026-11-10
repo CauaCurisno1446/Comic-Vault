@@ -9,9 +9,7 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-const comicsDir = path.resolve(
-  process.env.COMICS_DIR || "../Comics"
-)
+const comicsDir = path.resolve(process.env.COMICS_DIR || "../Comics")
 
 function resolveLibraryPath(relativePath = "") {
   const resolved = path.resolve(comicsDir, relativePath)
@@ -29,9 +27,7 @@ function resolveLibraryPath(relativePath = "") {
 // GET /api/dirs?path=/caminho/da/biblioteca
 app.get("/api/dirs", (req, res) => {
   try {
-    const dirPath = resolveLibraryPath(
-      (req.query.path as string) || ""
-    )
+    const dirPath = resolveLibraryPath((req.query.path as string) || "")
 
     if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
       res.status(400).json({ error: "Diretório inválido" })
@@ -46,10 +42,7 @@ app.get("/api/dirs", (req, res) => {
       .filter((e) => e.isDirectory() && !e.name.startsWith("."))
       .map((e) => ({
         name: e.name,
-        path: path.posix.join(
-          (req.query.path as string) || "",
-          e.name
-        ),
+        path: path.posix.join((req.query.path as string) || "", e.name),
       }))
 
     res.json(dirs)
@@ -76,10 +69,7 @@ app.post("/api/dirs", (req, res) => {
 
     const parentDir = resolveLibraryPath(parentPath)
 
-    if (
-      !fs.existsSync(parentDir) ||
-      !fs.statSync(parentDir).isDirectory()
-    ) {
+    if (!fs.existsSync(parentDir) || !fs.statSync(parentDir).isDirectory()) {
       res.status(400).json({ error: "Diretório pai inválido" })
       return
     }
@@ -102,10 +92,116 @@ app.post("/api/dirs", (req, res) => {
   }
 })
 
+app.patch("/api/dirs", (req, res) => {
+  try {
+    const { oldPath, newName } = req.body
+
+    // Valida o nome
+    if (
+      typeof oldPath !== "string" ||
+      typeof newName !== "string" ||
+      !oldPath.trim() ||
+      !newName.trim() ||
+      /[\/\\:*?"<>|]/.test(newName.trim()) ||
+      newName.trim() === "." ||
+      newName.trim() === ".."
+    ) {
+      return res.status(400).json({
+        error: "Dados inválidos",
+      })
+    }
+
+    const oldDir = resolveLibraryPath(oldPath)
+    const parentDir = path.dirname(oldDir)
+
+    const newDir = resolveLibraryPath(
+      path.posix.join(
+        path.relative(comicsDir, parentDir).split(path.sep).join("/"),
+        newName.trim(),
+      ),
+    )
+
+    if (!fs.existsSync(oldDir) || !fs.statSync(oldDir).isDirectory()) {
+      return res.status(404).json({
+        error: "Pasta não encontrada",
+      })
+    }
+
+    if (fs.existsSync(newDir)) {
+      return res.status(409).json({
+        error: "Já existe uma pasta com esse nome",
+      })
+    }
+
+    fs.renameSync(oldDir, newDir)
+
+    const newRelativePath = path
+      .relative(comicsDir, newDir)
+      .split(path.sep)
+      .join("/")
+
+    return res.status(200).json({
+      message: "Pasta renomeada com sucesso",
+      name: newName.trim(),
+      path: newRelativePath,
+    })
+  } catch (error) {
+    console.error("Erro ao renomear pasta:", error)
+
+    return res.status(500).json({
+      error: "Não foi possível renomear a pasta",
+    })
+  }
+})
+
+app.delete("/api/dirs", (req, res) => {
+  try {
+    const relativePath = String(req.query.path || "")
+
+    if (!relativePath.trim()) {
+      return res.status(400).json({
+        error: "Caminho da pasta não informado",
+      })
+    }
+
+    const dirPath = resolveLibraryPath(relativePath)
+
+    if (!fs.existsSync(dirPath) || !fs.statSync(dirPath).isDirectory()) {
+      return res.status(404).json({
+        error: "Pasta não encontrada",
+      })
+    }
+
+    // Impede excluir a raiz da biblioteca.
+    if (path.resolve(dirPath) === path.resolve(comicsDir)) {
+      return res.status(400).json({
+        error: "Não é permitido excluir a biblioteca principal",
+      })
+    }
+
+    // Só exclui se estiver vazia.
+    fs.rmdirSync(dirPath)
+
+    return res.status(200).json({
+      message: "Pasta excluída com sucesso",
+    })
+  } catch (error: any) {
+    if (error.code === "ENOTEMPTY" || error.code === "EEXIST") {
+      return res.status(409).json({
+        error: "A pasta não está vazia. Remova seu conteúdo primeiro.",
+      })
+    }
+
+    console.error("Erro ao excluir pasta:", error)
+
+    return res.status(500).json({
+      error: "Não foi possível excluir a pasta",
+    })
+  }
+})
+
 app.get("/api/files", (req, res) => {
-  const dirPath = resolveLibraryPath(
-    (req.query.path as string) || ""
-  )
+  const dirPath = resolveLibraryPath((req.query.path as string) || "")
 
   if (!dirPath || !fs.existsSync(dirPath)) {
     res.status(400).json({ error: "Caminho inválido" })
@@ -131,9 +227,7 @@ app.get("/api/files", (req, res) => {
 })
 
 app.get("/api/cover", async (req, res) => {
-  const filePath = resolveLibraryPath(
-    req.query.path as string
-  )
+  const filePath = resolveLibraryPath(req.query.path as string)
   const fileType = req.query.type as string
 
   if (!filePath || !fileType || !fs.existsSync(filePath)) {
@@ -152,9 +246,7 @@ app.get("/api/cover", async (req, res) => {
 })
 
 app.get("/api/read/info", async (req, res) => {
-  const filePath = resolveLibraryPath(
-    req.query.path as string
-  )
+  const filePath = resolveLibraryPath(req.query.path as string)
   const fileType = req.query.type as string
 
   if (!filePath || !fs.existsSync(filePath)) {
@@ -168,9 +260,7 @@ app.get("/api/read/info", async (req, res) => {
 
 // Retorna a imagem de uma página específica
 app.get("/api/read/page", async (req, res) => {
-  const filePath = resolveLibraryPath(
-    req.query.path as string
-  )
+  const filePath = resolveLibraryPath(req.query.path as string)
   const fileType = req.query.type as string
   const pageNum = parseInt(req.query.page as string)
 

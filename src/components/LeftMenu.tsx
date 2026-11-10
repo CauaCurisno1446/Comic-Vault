@@ -1,5 +1,13 @@
 import { useState, useEffect } from "react"
-import { Home, Search, Book, Plus, Folder, X, Settings } from "lucide-react"
+import {
+  Home,
+  Search,
+  Book,
+  Plus,
+  Folder,
+  X,
+  EllipsisVertical,
+} from "lucide-react"
 import Modal from "./Modal"
 import ModalConfirmar from "./ModalConfirmar"
 import { useModal } from "../hooks/useModal"
@@ -32,11 +40,9 @@ function LeftMenu({
 
   // campos do modal criar pasta de hq
   const [nomePasta, setNomePasta] = useState("")
-  const [confirmar, setConfirmar] = useState("")
 
   // campos do modal editar pasta de hq
   const [nomeEditar, setNomeEditar] = useState("")
-  const [idParaDeletar, setIdParaDeletar] = useState<number | null>(null)
 
   useEffect(() => {
     fetch(`http://${window.location.hostname}:3001/api/dirs`)
@@ -70,6 +76,12 @@ function LeftMenu({
   function handleSearchToggle() {
     setShowSearch((s) => !s)
     if (showSearch) onSearch("")
+  }
+
+  function abrirModalEdicao(dir: Dir) {
+    setSelecionada(dir)
+    setNomeEditar(dir.name)
+    modalEditar.abrir()
   }
 
   async function criarPasta() {
@@ -108,6 +120,92 @@ function LeftMenu({
     }
   }
 
+  async function editarPasta() {
+    if (!selecionada || !nomeEditar.trim()) return
+
+    try {
+      const response = await fetch(
+        `http://${window.location.hostname}:3001/api/dirs`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            oldPath: selecionada.path,
+            newName: nomeEditar.trim(),
+          }),
+        },
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        alert(data.error || "Não foi possível renomear a pasta.")
+        return
+      }
+
+      const dirsResponse = await fetch(
+        `http://${window.location.hostname}:3001/api/dirs`,
+      )
+
+      setDirs(await dirsResponse.json())
+
+      // Se a pasta renomeada estava selecionada, atualiza a seleção.
+      if (selectedDir === selecionada.path) {
+        onSelectDir(data.path)
+      }
+
+      modalEditar.fechar()
+      setSelecionada(null)
+      setNomeEditar("")
+    } catch (error) {
+      console.error("Erro ao editar pasta:", error)
+      alert("Não foi possível renomear a pasta.")
+    }
+  }
+
+  async function excluirPasta() {
+    if (!selecionada) return
+
+    const confirmar = window.confirm(
+      `Deseja excluir a pasta "${selecionada.name}"?`,
+    )
+
+    if (!confirmar) return
+
+    try {
+      const response = await fetch(
+        `http://${window.location.hostname}:3001/api/dirs?path=${encodeURIComponent(selecionada.path)}`,
+        {
+          method: "DELETE",
+        },
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        alert(data.error || "Não foi possível excluir a pasta.")
+        return
+      }
+
+      setDirs((anteriores) =>
+        anteriores.filter((dir) => dir.path !== selecionada.path),
+      )
+
+      if (selectedDir === selecionada.path) {
+        onSelectDir(null)
+      }
+
+      modalEditar.fechar()
+      setSelecionada(null)
+      setNomeEditar("")
+    } catch (error) {
+      console.error("Erro ao excluir pasta:", error)
+      alert("Não foi possível excluir a pasta.")
+    }
+  }
+
   return (
     <div className="w-full lg:min-h-screen lg:w-1/4 xl:w-1/5 flex flex-col lg:items-center gap-3 lg:gap-4 p-2 lg:p-4">
       {modalCriar.aberto && (
@@ -128,6 +226,33 @@ function LeftMenu({
           </button>
         </Modal>
       )}
+
+      {modalEditar.aberto && (
+        <Modal titulo="Editar Pasta" onClose={modalEditar.fechar}>
+          <input
+            type="text"
+            placeholder="Nome da nova pasta..."
+            className="flex-1 bg-cv-card-hover text-cv-text text-sm px-3 py-1.5 rounded-lg border border-cv-border focus:outline-none focus:border-cv-accent duration-200"
+            value={nomeEditar}
+            onChange={(e) => setNomeEditar(e.target.value)}
+          />
+          <button
+            type="submit"
+            className="px-5 py-2 text-sm bg-[var(--cv-accent)] hover:bg-[var(--cv-accent-hover)] text-[var(--cv-text)] font-bold rounded-lg transition-colors cursor-pointer"
+            onClick={excluirPasta}
+          >
+            excluir
+          </button>
+          <button
+            type="submit"
+            className="px-5 py-2 text-sm bg-[var(--cv-accent)] hover:bg-[var(--cv-accent-hover)] text-[var(--cv-text)] font-bold rounded-lg transition-colors cursor-pointer"
+            onClick={editarPasta}
+          >
+            Salvar
+          </button>
+        </Modal>
+      )}
+
       {/* Ações topo */}
       <div className="w-full lg:max-w-xs flex flex-col bg-cv-card rounded-lg p-2 lg:p-3 gap-1">
         <div
@@ -218,7 +343,15 @@ function LeftMenu({
               </span>
 
               <div className="w-8 h-8 ml-auto flex items-center justify-center rounded-lg hover:bg-[var(--cv-accent-hover)] duration-200">
-                <Settings size={20} />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    abrirModalEdicao(dir)
+                  }}
+                  className="w-full h-full flex items-center justify-center cursor-pointer"
+                >
+                  <EllipsisVertical size={18} />
+                </button>
               </div>
             </div>
           ))}
