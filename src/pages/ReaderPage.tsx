@@ -63,6 +63,21 @@ function ReaderPage() {
   const [panY, setPanY] = useState(0)
 
   const bookRef = useRef<any>(null)
+  const dragRef = useRef({ active: false, x: 0, y: 0, panX: 0, panY: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+
+  // Limite do pan para a página não sair totalmente da tela
+  const clampPan = useCallback(
+    (x: number, y: number, z: number) => {
+      const maxX = (z - 1) * (window.innerWidth / 2)
+      const maxY = (z - 1) * (window.innerHeight / 2)
+      return {
+        x: Math.min(Math.max(x, -maxX), maxX),
+        y: Math.min(Math.max(y, -maxY), maxY),
+      }
+    },
+    [],
+  )
 
   // Dimensões de cada página (respeita a largura da tela no mobile)
   const availH = window.innerHeight - TOP_BAR_AND_PROGRESS
@@ -77,6 +92,17 @@ function ReaderPage() {
     setPanX(0)
     setPanY(0)
   }, [currentPage])
+
+  // Ao mudar o zoom: volta ao centro em 100%, senão mantém o pan dentro do limite
+  useEffect(() => {
+    if (zoom <= 1) {
+      setPanX(0)
+      setPanY(0)
+      return
+    }
+    setPanX((x) => clampPan(x, 0, zoom).x)
+    setPanY((y) => clampPan(0, y, zoom).y)
+  }, [zoom, clampPan])
 
   // Trava scroll do body no mobile
   useEffect(() => {
@@ -134,8 +160,15 @@ function ReaderPage() {
   }, [currentPage, filePath, pageCount, settings.saveProgress])
 
   // A lib decide quantas páginas viram pelo layout, então não há "step"
-  const goNext = useCallback(() => bookRef.current?.pageFlip().flipNext(), [])
-  const goPrev = useCallback(() => bookRef.current?.pageFlip().flipPrev(), [])
+  // Com zoom, só é possível navegar (arrastar) a página; virar só em 100%
+  const goNext = useCallback(() => {
+    if (zoom > 1) return
+    bookRef.current?.pageFlip().flipNext()
+  }, [zoom])
+  const goPrev = useCallback(() => {
+    if (zoom > 1) return
+    bookRef.current?.pageFlip().flipPrev()
+  }, [zoom])
 
   // Teclado
   const handleKey = useCallback(
@@ -165,7 +198,41 @@ function ReaderPage() {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black flex flex-col select-none touch-none overflow-hidden"
+      className={`fixed inset-0 z-50 bg-black flex flex-col select-none touch-none overflow-hidden ${
+        zoom > 1 ? (isDragging ? "cursor-grabbing" : "cursor-grab") : ""
+      }`}
+      onMouseDown={(e) => {
+        if (zoom <= 1) return
+        if ((e.target as HTMLElement).closest("button")) return
+        e.preventDefault()
+        dragRef.current = {
+          active: true,
+          x: e.clientX,
+          y: e.clientY,
+          panX,
+          panY,
+        }
+        setIsDragging(true)
+      }}
+      onMouseMove={(e) => {
+        const d = dragRef.current
+        if (!d.active) return
+        const next = clampPan(
+          d.panX + (e.clientX - d.x),
+          d.panY + (e.clientY - d.y),
+          zoom,
+        )
+        setPanX(next.x)
+        setPanY(next.y)
+      }}
+      onMouseUp={() => {
+        dragRef.current.active = false
+        setIsDragging(false)
+      }}
+      onMouseLeave={() => {
+        dragRef.current.active = false
+        setIsDragging(false)
+      }}
       onTouchStart={(e) => {
         const el = e.currentTarget as HTMLDivElement
 
@@ -214,12 +281,9 @@ function ReaderPage() {
           const dx = e.touches[0].clientX - startX
           const dy = e.touches[0].clientY - startY
 
-          const maxPan = (zoom - 1) * (window.innerWidth / 2)
-          const newPanX = Math.min(Math.max(startPanX + dx, -maxPan), maxPan)
-          const newPanY = Math.min(Math.max(startPanY + dy, -maxPan), maxPan)
-
-          setPanX(newPanX)
-          setPanY(newPanY)
+          const next = clampPan(startPanX + dx, startPanY + dy, zoom)
+          setPanX(next.x)
+          setPanY(next.y)
         }
       }}
       onTouchEnd={(e) => {
@@ -321,7 +385,7 @@ function ReaderPage() {
       <div className="flex-1 flex items-center justify-center overflow-hidden relative">
         <button
           onClick={goPrev}
-          disabled={currentPage === 1}
+          disabled={currentPage === 1 || zoom > 1}
           className={`absolute left-2 z-10 text-white bg-black/50 hover:bg-black/80 rounded-full p-2 transition-all disabled:opacity-20 ${
             showUI ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
@@ -350,7 +414,7 @@ function ReaderPage() {
             usePortrait={!settings.doublePage}
             drawShadow
             maxShadowOpacity={0.5}
-            flippingTime={700}
+            flippingTime={400}
             swipeDistance={30}
             mobileScrollSupport={false}
             useMouseEvents
@@ -374,7 +438,7 @@ function ReaderPage() {
 
         <button
           onClick={goNext}
-          disabled={currentPage >= pageCount}
+          disabled={currentPage >= pageCount || zoom > 1}
           className={`absolute right-2 z-10 text-white bg-black/50 hover:bg-black/80 rounded-full p-2 transition-all disabled:opacity-20 ${
             showUI ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
