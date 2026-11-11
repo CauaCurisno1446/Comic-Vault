@@ -3,6 +3,7 @@ import { useOutletContext, useNavigate } from "react-router-dom"
 import type { SelectedFile } from "../layout/MainLayout"
 import { isCompleted } from "../hooks/useReadingProgress"
 import { FileExclamationPoint, Loader, Plus, BookOpenText } from "lucide-react"
+import SplitText from "../components/SplitText"
 
 interface OutletContext {
   selectedDir: string | null
@@ -70,6 +71,10 @@ function MainPage() {
       .catch(() => setLoading(false))
   }, [selectedDir])
 
+  const handleAnimationComplete = () => {
+    console.log("All letters have animated!")
+  }
+
   return (
     <div className="w-full h-full bg-cv-card rounded-lg flex flex-col overflow-hidden">
       <div className="w-full flex items-center gap-2 text-cv-text text-base md:text-lg font-bold p-3 md:p-4 shrink-0 border-b border-cv-border">
@@ -78,7 +83,28 @@ function MainPage() {
           style={{ fontFamily: "Titulo" }}
         >
           <BookOpenText size={20} className="inline-block mr-2" />
-          {selectedDir ? selectedDir.split("\\").pop() : "Selecione uma pasta"}
+          {selectedDir ? (
+            <SplitText
+              text={selectedDir.split("\\").pop()!}
+              className="text-2xl font-semibold text-center select-none"
+              effect="rise"
+              splitType="chars"
+              delay={40}
+              duration={0.5}
+              staggerFrom="start"
+              trigger="view"
+              hoverEffect="lift"
+              loop={false}
+              loopDelay={1.5}
+              mask={false}
+              threshold={0.1}
+              rootMargin="-100px"
+              textAlign="center"
+              onLetterAnimationComplete={handleAnimationComplete}
+            />
+          ) : (
+            "Selecione uma pasta"
+          )}
         </span>
 
         {selectedDir && (
