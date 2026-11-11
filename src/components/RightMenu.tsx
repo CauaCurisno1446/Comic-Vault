@@ -141,10 +141,10 @@ function RightMenu({ selectedFile, onOpenSettings }: Props) {
       </div>
 
       {/* Configurações */}
-      <div className="w-full lg:max-w-xs bg-cv-card rounded-lg shrink-0">
+      <div className="w-full lg:max-w-xs bg-cv-accent rounded-lg shrink-0">
         <button
           onClick={onOpenSettings}
-          className="w-full flex items-center justify-center lg:justify-start gap-2 text-cv-text text-sm font-bold cursor-pointer transition-colors hover:bg-cv-card-hover p-3 lg:p-4 rounded-lg active:scale-95 lg:active:scale-100"
+          className="w-full flex items-center justify-center lg:justify-start gap-2 text-cv-text text-sm font-bold cursor-pointer transition-colors hover:bg-[var(--cv-accent-hover)] p-3 lg:p-4 rounded-lg active:scale-95 lg:active:scale-100"
         >
           <Settings size={20} />
           <span>Configurações</span>

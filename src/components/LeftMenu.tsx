@@ -353,7 +353,7 @@ function LeftMenu({
                 {dir.name}
               </span>
 
-              <div className="w-8 h-8 ml-auto flex items-center justify-center rounded-lg hover:bg-[var(--cv-accent-hover)] duration-200">
+              <div className="w-8 h-8 ml-auto flex items-center justify-center rounded-lg hover:bg-[var(--cv-accent-muted)] duration-200">
                 <button
                   onClick={(e) => {
                     e.stopPropagation()

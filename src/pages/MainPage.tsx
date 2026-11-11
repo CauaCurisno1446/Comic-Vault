@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useOutletContext, useNavigate } from "react-router-dom"
 import type { SelectedFile } from "../layout/MainLayout"
 import { isCompleted } from "../hooks/useReadingProgress"
+import { FileExclamationPoint, Loader, Plus, BookOpenText } from "lucide-react"
 
 interface OutletContext {
   selectedDir: string | null
@@ -72,9 +73,23 @@ function MainPage() {
   return (
     <div className="w-full h-full bg-cv-card rounded-lg flex flex-col overflow-hidden">
       <div className="w-full flex items-center gap-2 text-cv-text text-base md:text-lg font-bold p-3 md:p-4 shrink-0 border-b border-cv-border">
-        <span className="truncate">
+        <span className="truncate text-cv-accent">
+          <BookOpenText size={18} className="inline-block mr-2" />
           {selectedDir ? selectedDir.split("\\").pop() : "Selecione uma pasta"}
         </span>
+
+        {selectedDir && (
+          <span className="text-cv-text-muted text-xs md:text-base font-normal">
+            ({files.length} arquivo{files.length !== 1 ? "s" : ""})
+          </span>
+        )}
+
+        {selectedDir && (
+          <button className="ml-auto flex items-center justify-center rounded-lg cursor-pointer text-cv-text-muted hover:text-cv-text transition-colors text-sm md:text-base font-semibold hover:bg-[var(--cv-accent-muted)] p-2">
+            <Plus size={16} className="inline-block mr-1" />
+            Adicionar Arquivo
+          </button>
+        )}
       </div>
 
       <div className="flex-1 p-3 md:p-4 overflow-y-auto">
@@ -84,14 +99,20 @@ function MainPage() {
           </p>
         )}
         {loading && (
-          <p className="text-cv-text-muted text-sm md:text-base">
-            Carregando...
-          </p>
+          <div className="flex flex-col items-center justify-center gap-2 mt-10">
+            <Loader size={40} className="text-cv-text-muted" />
+            <p className="text-cv-text-muted text-sm md:text-base font-bold">
+              Carregando arquivos...
+            </p>
+          </div>
         )}
         {!loading && selectedDir && files.length === 0 && (
-          <p className="text-cv-text-muted text-sm md:text-base">
-            Nenhum arquivo encontrado nessa pasta.
-          </p>
+          <div className="flex flex-col items-center justify-center gap-2 mt-10">
+            <FileExclamationPoint size={40} className="text-cv-text-muted" />
+            <p className="text-cv-text-muted text-sm md:text-base font-bold">
+              Nenhum arquivo encontrado nessa pasta.
+            </p>
+          </div>
         )}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
