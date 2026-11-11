@@ -73,13 +73,16 @@ function MainPage() {
   return (
     <div className="w-full h-full bg-cv-card rounded-lg flex flex-col overflow-hidden">
       <div className="w-full flex items-center gap-2 text-cv-text text-base md:text-lg font-bold p-3 md:p-4 shrink-0 border-b border-cv-border">
-        <span className="truncate text-cv-accent">
-          <BookOpenText size={18} className="inline-block mr-2" />
+        <span
+          className="truncate text-cv-accent text-xl"
+          style={{ fontFamily: "Titulo" }}
+        >
+          <BookOpenText size={20} className="inline-block mr-2" />
           {selectedDir ? selectedDir.split("\\").pop() : "Selecione uma pasta"}
         </span>
 
         {selectedDir && (
-          <span className="text-cv-text-muted text-xs md:text-base font-normal">
+          <span className="text-[var(--cv-text-subtle)] text-xs md:text-base font-semibold">
             ({files.length} arquivo{files.length !== 1 ? "s" : ""})
           </span>
         )}
@@ -115,12 +118,12 @@ function MainPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4">
           {filteredFiles.map((file) => (
             <div
               key={file.path}
               className={`
-                rounded-lg overflow-hidden flex flex-col cursor-pointer hover:scale-105 transition-all relative group border
+                rounded-lg overflow-hidden flex flex-col cursor-pointer hover:scale-105 transition-all relative group border shadow-xl
                 ${
                   isCompleted(file.path)
                     ? "bg-green-900/40 border-green-700/60 hover:bg-green-900/60"
@@ -168,7 +171,7 @@ function MainPage() {
                 <span className="text-cv-text text-xs md:text-sm font-medium line-clamp-2 leading-tight">
                   {file.name}
                 </span>
-                <span className="text-cv-text-muted text-[10px] md:text-xs uppercase mt-1 block font-semibold">
+                <span className="text-cv-text-muted text-[10px] md:text-xs uppercase mt-1 self-start bg-[var(--cv-accent-muted)] px-1.5 py-0.5 rounded">
                   {file.type}
                 </span>
               </div>

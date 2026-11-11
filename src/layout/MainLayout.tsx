@@ -26,16 +26,12 @@ function MainLayout() {
         selectedDir={selectedDir}
         search={search}
         onSearch={setSearch}
+        onOpenSettings={() => setShowSettings(true)}
       />
 
       <main className="content flex-1 p-4 overflow-hidden">
         <Outlet context={{ selectedDir, setSelectedFile, search }} />
       </main>
-
-      <RightMenu
-        selectedFile={selectedFile}
-        onOpenSettings={() => setShowSettings(true)}
-      />
 
       {showSettings && (
         <SettingsModal

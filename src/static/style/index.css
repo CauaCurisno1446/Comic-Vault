@@ -5,3 +5,31 @@ body.reader-open {
   position: fixed;
   width: 100%;
 }
+
+@font-face {
+  font-family: "Titulo";
+  src: url("../fonts/pointer.otf") format("opentype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geral";
+  src: url("../fonts/Roundo-Medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+.fonte-titulo {
+  font-family: "Titulo", sans-serif;
+}
+
+.fonte-geral {
+  font-family: "Geral", sans-serif;
+}
+
+body {
+  font-family: "Geral", sans-serif;
+}

@@ -8,9 +8,19 @@ import {
   X,
   EllipsisVertical,
   SquarePen,
+  Settings,
+  History,
 } from "lucide-react"
 import Modal from "./Modal"
 import { useModal } from "../hooks/useModal"
+import Logo from "../static/img/logo-light.png"
+import LogoDark from "../static/img/logo.png"
+import { getHistory } from "../hooks/useHistory"
+import type { HistoryEntry } from "../hooks/useHistory"
+
+const API = `http://${window.location.hostname}:3001`
+
+const lightThemes = ["paper", "sepia", "modern-light"]
 
 interface Dir {
   name: string
@@ -22,6 +32,7 @@ type LeftMenuProps = {
   onSelectDir: (path: string | null) => void
   search: string
   onSearch: (v: string) => void
+  onOpenSettings: () => void
 }
 
 function LeftMenu({
@@ -29,10 +40,12 @@ function LeftMenu({
   onSelectDir,
   search,
   onSearch,
+  onOpenSettings,
 }: LeftMenuProps) {
   const [dirs, setDirs] = useState<Dir[]>([])
   const [loading, setLoading] = useState(true)
   const [showSearch, setShowSearch] = useState(false)
+  const [history, setHistory] = useState<HistoryEntry[]>([])
 
   const modalCriar = useModal()
   const modalEditar = useModal()
@@ -43,6 +56,40 @@ function LeftMenu({
 
   // campos do modal editar pasta de hq
   const [nomeEditar, setNomeEditar] = useState("")
+
+  // tema atual (para escolher a versão certa do logo)
+  const [tema, setTema] = useState(() => {
+    const configs = JSON.parse(
+      localStorage.getItem("comicvault-settings") || "{}",
+    )
+    return configs.theme ?? "midnight"
+  })
+
+  useEffect(() => {
+    const onSettingsChanged = (event: Event) => {
+      const customEvent = event as CustomEvent
+      setTema(customEvent.detail.theme)
+    }
+
+    window.addEventListener(
+      "cv-settings-changed",
+      onSettingsChanged as EventListener,
+    )
+
+    return () =>
+      window.removeEventListener(
+        "cv-settings-changed",
+        onSettingsChanged as EventListener,
+      )
+  }, [])
+
+  // histórico de leitura
+  useEffect(() => {
+    setHistory(getHistory().slice(0, 4))
+    const onFocus = () => setHistory(getHistory().slice(0, 4))
+    window.addEventListener("focus", onFocus)
+    return () => window.removeEventListener("focus", onFocus)
+  }, [])
 
   useEffect(() => {
     fetch(`http://${window.location.hostname}:3001/api/dirs`)
@@ -264,46 +311,59 @@ function LeftMenu({
         </Modal>
       )}
 
-      {/* Ações topo */}
-      <div className="w-full lg:max-w-xs flex flex-col bg-cv-card rounded-lg p-2 lg:p-3 gap-1">
-        <div
-          onClick={handleHomeClick}
-          className={`w-full flex items-center gap-2 text-sm lg:text-base font-bold cursor-pointer transition-colors p-2 rounded-lg ${
-            !selectedDir
-              ? "bg-cv-border text-cv-text"
-              : "text-cv-text-muted hover:bg-cv-card-hover hover:text-cv-text"
-          }`}
-        >
-          <Home size={20} />
-          <span className="hidden sm:inline">Página Inicial</span>
-        </div>
+      <div className="w-full lg:max-w-xs flex flex-col gap-2">
+        <div className="flex items-stretch gap-3">
+          <img
+            src={lightThemes.includes(tema) ? LogoDark : Logo}
+            alt="ComicVault"
+            className="w-16 lg:w-20 shrink-0 object-contain pointer-events-none select-none"
+          />
 
-        <div
-          onClick={handleSearchToggle}
-          className={`w-full flex items-center gap-2 text-sm lg:text-base font-bold cursor-pointer transition-colors p-2 rounded-lg ${
-            showSearch
-              ? "bg-cv-border text-cv-text"
-              : "text-cv-text-muted hover:bg-cv-card-hover hover:text-cv-text"
-          }`}
-        >
-          <Search size={20} />
-          <span className="hidden sm:inline">Pesquisar</span>
+          <div className="flex-1 flex items-center justify-center gap-2 bg-cv-card rounded-lg p-2 lg:p-3">
+            <button
+              onClick={handleHomeClick}
+              title="Página Inicial"
+              aria-label="Página Inicial"
+              className={`w-10 h-10 flex items-center justify-center rounded-lg cursor-pointer transition-colors ${
+                !selectedDir
+                  ? "bg-cv-border text-cv-text"
+                  : "text-cv-text-muted hover:bg-cv-card-hover hover:text-cv-text"
+              }`}
+            >
+              <Home size={20} />
+            </button>
+
+            <button
+              onClick={handleSearchToggle}
+              title="Pesquisar"
+              aria-label="Pesquisar"
+              className={`w-auto h-10 flex items-center justify-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
+                showSearch
+                  ? "bg-cv-border text-cv-text"
+                  : "text-cv-text-muted hover:bg-cv-card-hover hover:text-cv-text"
+              }`}
+            >
+              <Search size={20} />
+              Pesquisar
+            </button>
+          </div>
         </div>
 
         {/* Campo de busca — aparece quando clicar em Pesquisar */}
         {showSearch && (
-          <div className="flex items-center gap-2 px-2 pb-1">
+          <div className="flex items-center gap-2 bg-cv-card rounded-lg p-2">
             <input
               autoFocus
               value={search}
               onChange={(e) => onSearch(e.target.value)}
               placeholder="Buscar arquivos..."
-              className="flex-1 bg-cv-card-hover text-cv-text text-sm px-3 py-1.5 rounded-lg border border-cv-border focus:outline-none focus:border-cv-accent"
+              className="flex-1 min-w-0 bg-cv-card-hover text-cv-text text-sm px-3 py-1.5 rounded-lg border border-cv-border focus:outline-none focus:border-cv-accent"
             />
             {search && (
               <button
                 onClick={() => onSearch("")}
-                className="text-cv-text-muted hover:text-cv-text"
+                className="text-cv-text-muted hover:text-cv-text cursor-pointer"
+                aria-label="Limpar busca"
               >
                 <X size={16} />
               </button>
@@ -312,8 +372,9 @@ function LeftMenu({
         )}
       </div>
 
-      {/* Biblioteca */}
-      <div className="w-full lg:max-w-xs flex-1 lg:min-h-64 bg-cv-card rounded-lg flex flex-col">
+      {/* Painel principal: biblioteca + lidos recentemente + configurações */}
+      <div className="w-full lg:max-w-xs flex-1 lg:min-h-64 bg-cv-card rounded-lg flex flex-col p-0">
+        {/* Cabeçalho da biblioteca */}
         <div className="w-full flex items-center p-3 lg:p-5 gap-2 text-cv-text text-base lg:text-lg font-bold border-b border-cv-border">
           <Book size={20} />
           <span>Biblioteca</span>
@@ -327,7 +388,8 @@ function LeftMenu({
           </span>
         </div>
 
-        <div className="flex flex-row lg:flex-col gap-2 px-3 pb-3 lg:pb-4 overflow-x-auto lg:overflow-y-auto">
+        {/* Lista de pastas */}
+        <div className="flex flex-row lg:flex-col gap-2 px-3 pt-3 pb-3 lg:pb-4 overflow-x-auto lg:overflow-y-auto lg:flex-1">
           {loading && (
             <p className="text-cv-text-muted text-sm px-2">Carregando...</p>
           )}
@@ -366,6 +428,59 @@ function LeftMenu({
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Lidos recentemente */}
+        <div className="px-3 lg:px-4 pb-3 mt-auto">
+          <div className="flex items-center gap-2 text-cv-text text-xs lg:text-sm font-bold mb-2">
+            <History size={16} />
+            <span>Lidos recentemente</span>
+          </div>
+
+          {history.length === 0 ? (
+            <p className="text-cv-text-subtle text-xs">
+              Nenhum arquivo lido ainda.
+            </p>
+          ) : (
+            <div className="grid grid-cols-4 gap-2">
+              {history.map((entry) => (
+                <div key={entry.path} className="flex flex-col gap-1 min-w-0">
+                  <div className="w-full aspect-[2/3] bg-cv-card-hover rounded overflow-hidden">
+                    <img
+                      src={`${API}/api/cover?path=${encodeURIComponent(entry.path)}&type=${entry.type}`}
+                      alt={entry.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        ;(e.target as HTMLImageElement).style.display = "none"
+                      }}
+                    />
+                  </div>
+                  <div className="w-full h-0.5 bg-cv-border rounded">
+                    <div
+                      className="h-full bg-cv-accent rounded"
+                      style={{
+                        width: `${entry.pageCount > 0 ? (entry.currentPage / entry.pageCount) * 100 : 0}%`,
+                      }}
+                    />
+                  </div>
+                  <p className="text-cv-text-muted text-[9px] truncate">
+                    {entry.name}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Configurações */}
+        <div className="px-3 lg:px-4 pb-3 lg:pb-4 shrink-0">
+          <button
+            onClick={onOpenSettings}
+            className="w-full flex items-center justify-center lg:justify-start gap-2 bg-cv-accent text-cv-text text-sm font-bold cursor-pointer transition-colors hover:bg-[var(--cv-accent-hover)] p-3 rounded-lg active:scale-95 lg:active:scale-100"
+          >
+            <Settings size={18} />
+            <span>Configurações</span>
+          </button>
         </div>
       </div>
     </div>
