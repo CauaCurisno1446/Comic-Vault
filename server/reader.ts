@@ -20,6 +20,12 @@ function addToCache(key: string, buffer: Buffer) {
   pageCache.set(key, buffer)
 }
 
+function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
+  const arrayBuffer = new ArrayBuffer(buffer.byteLength)
+  new Uint8Array(arrayBuffer).set(buffer)
+  return arrayBuffer
+}
+
 //PDF
 
 async function getPdfPage(filePath: string, pageNum: number): Promise<Buffer> {
@@ -85,17 +91,29 @@ async function getCbzPage(filePath: string, pageNum: number): Promise<Buffer> {
 }
 
 export async function getCbzPageCount(filePath: string): Promise<number> {
-  if (!zipCache.has(filePath)) {
-    const buffer = fs.readFileSync(filePath)
-    const zip = await JSZip.loadAsync(buffer)
-    const pages = Object.keys(zip.files)
-      .filter(
-        (name) => /\.(jpg|jpeg|png|webp)$/i.test(name) && !zip.files[name].dir,
-      )
-      .sort()
-    zipCache.set(filePath, { pages, zip })
+  try {
+    if (!zipCache.has(filePath)) {
+      const buffer = fs.readFileSync(filePath)
+      const zip = await JSZip.loadAsync(buffer)
+
+      const pages = Object.keys(zip.files)
+        .filter(
+          (name) =>
+            /\.(jpg|jpeg|png|webp)$/i.test(name) &&
+            !zip.files[name].dir,
+        )
+        .sort()
+
+      zipCache.set(filePath, { pages, zip })
+    }
+
+    return zipCache.get(filePath)!.pages.length
+  } catch (error) {
+    throw new Error(
+      `Não foi possível ler o arquivo CBZ "${filePath}". Verifique se ele é um ZIP válido.`,
+      { cause: error },
+    )
   }
-  return zipCache.get(filePath)!.pages.length
 }
 
 //CBR
@@ -111,7 +129,9 @@ async function getCbrPage(filePath: string, pageNum: number): Promise<Buffer> {
 
   // Lista as páginas se ainda não tiver no cache
   if (!rarPagesCache.has(filePath)) {
-    const extractor = await createExtractorFromData({ data: fileBuffer })
+    const extractor = await createExtractorFromData({
+      data: bufferToArrayBuffer(fileBuffer),
+    })
     const list = extractor.getFileList()
     const pages = [...list.fileHeaders]
       .filter((h) => /\.(jpg|jpeg|png)$/i.test(h.name) && !h.flags.directory)
@@ -125,7 +145,9 @@ async function getCbrPage(filePath: string, pageNum: number): Promise<Buffer> {
   if (!targetPage) throw new Error(`Página ${pageNum} não encontrada`)
 
   // Extrai só a página pedida
-  const extractor = await createExtractorFromData({ data: fileBuffer })
+  const extractor = await createExtractorFromData({
+    data: bufferToArrayBuffer(fileBuffer),
+  })
   const { files } = extractor.extract({ files: [targetPage] })
   const file = [...files].find((f) => f.fileHeader.name === targetPage)
 
@@ -143,7 +165,9 @@ export async function getCbrPageCount(filePath: string): Promise<number> {
   if (!rarPagesCache.has(filePath)) {
     const { createExtractorFromData } = await import("node-unrar-js")
     const fileBuffer = fs.readFileSync(filePath)
-    const extractor = await createExtractorFromData({ data: fileBuffer })
+    const extractor = await createExtractorFromData({
+      data: bufferToArrayBuffer(fileBuffer),
+    })
     const list = extractor.getFileList()
     const pages = [...list.fileHeaders]
       .filter((h) => /\.(jpg|jpeg|png)$/i.test(h.name) && !h.flags.directory)

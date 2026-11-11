@@ -254,8 +254,19 @@ app.get("/api/read/info", async (req, res) => {
     return
   }
 
-  const pageCount = await getPageCount(filePath, fileType)
-  res.json({ pageCount })
+  try {
+    const pageCount = await getPageCount(filePath, fileType)
+
+    res.json({
+      pageCount,
+    })
+  } catch (error) {
+    console.error("Erro ao carregar quadrinho:", error)
+
+    res.status(422).json({
+      error: "Não foi possível processar este quadrinho.",
+    })
+  }
 })
 
 // Retorna a imagem de uma página específica

@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from "react"
+import { forwardRef, useEffect, useState, useCallback, useRef } from "react"
 import { useSearchParams, useNavigate } from "react-router-dom"
+import HTMLFlipBook from "react-pageflip"
 import {
   ChevronLeft,
   ChevronRight,
@@ -15,10 +16,32 @@ import { addToHistory } from "../hooks/useHistory"
 
 const API = `http://${window.location.hostname}:3001`
 const PREFETCH = 3
+const PAGE_RATIO = 0.66 // proporção típica de quadrinho (largura / altura)
+const TOP_BAR_AND_PROGRESS = 48
+
+// Os tipos da lib exigem muitas props; este cast evita o ruído
+const Book = HTMLFlipBook as any
 
 function pageUrl(filePath: string, fileType: string, page: number) {
   return `${API}/api/read/page?path=${encodeURIComponent(filePath)}&type=${fileType}&page=${page}`
 }
+
+// A lib exige forwardRef nas páginas
+const FlipPage = forwardRef<HTMLDivElement, { src?: string; n: number }>(
+  ({ src, n }, ref) => (
+    <div ref={ref} className="bg-black">
+      {src && (
+        <img
+          src={src}
+          alt={`Página ${n}`}
+          draggable={false}
+          className="w-full h-full object-contain"
+        />
+      )}
+    </div>
+  ),
+)
+FlipPage.displayName = "FlipPage"
 
 function ReaderPage() {
   const [params] = useSearchParams()
@@ -38,6 +61,16 @@ function ReaderPage() {
   const [zoom, setZoom] = useState(1)
   const [panX, setPanX] = useState(0)
   const [panY, setPanY] = useState(0)
+
+  const bookRef = useRef<any>(null)
+
+  // Dimensões de cada página (respeita a largura da tela no mobile)
+  const availH = window.innerHeight - TOP_BAR_AND_PROGRESS
+  const maxW = settings.doublePage
+    ? window.innerWidth / 2
+    : window.innerWidth
+  const pageW = Math.round(Math.min(availH * PAGE_RATIO, maxW))
+  const pageH = Math.round(pageW / PAGE_RATIO)
 
   // Reseta pan ao trocar página
   useEffect(() => {
@@ -100,29 +133,9 @@ function ReaderPage() {
     })
   }, [currentPage, filePath, pageCount, settings.saveProgress])
 
-  // Prefetch
-  useEffect(() => {
-    const step = settings.doublePage ? 2 : 1
-    for (let i = step; i <= PREFETCH * step; i += step) {
-      const next = currentPage + i
-      if (next <= pageCount) {
-        new Image().src = pageUrl(filePath, fileType, next)
-        if (settings.doublePage && next + 1 <= pageCount) {
-          new Image().src = pageUrl(filePath, fileType, next + 1)
-        }
-      }
-    }
-  }, [currentPage, pageCount, filePath, fileType, settings.doublePage])
-
-  const goNext = useCallback(() => {
-    const step = settings.doublePage ? 2 : 1
-    setCurrentPage((p) => Math.min(p + step, pageCount))
-  }, [pageCount, settings.doublePage])
-
-  const goPrev = useCallback(() => {
-    const step = settings.doublePage ? 2 : 1
-    setCurrentPage((p) => Math.max(p - step, 1))
-  }, [settings.doublePage])
+  // A lib decide quantas páginas viram pelo layout, então não há "step"
+  const goNext = useCallback(() => bookRef.current?.pageFlip().flipNext(), [])
+  const goPrev = useCallback(() => bookRef.current?.pageFlip().flipPrev(), [])
 
   // Teclado
   const handleKey = useCallback(
@@ -222,18 +235,7 @@ function ReaderPage() {
           return
         }
 
-        // Se estava navegando com zoom, não troca página
-        if (el.dataset.moved === "true") return
-
-        // Tap simples sem zoom — troca pelo lado
-        if (zoom <= 1) {
-          const touch = e.changedTouches[0]
-          const tapX = touch.clientX
-          const screenWidth = window.innerWidth
-
-          if (tapX < screenWidth * 0.35) goPrev()
-          else if (tapX > screenWidth * 0.65) goNext()
-        }
+        // O tap/arrasto para virar página agora é tratado pelo react-pageflip
       }}
     >
       {/* Modal de configurações */}
@@ -253,6 +255,7 @@ function ReaderPage() {
           </p>
           <button
             onClick={() => {
+              bookRef.current?.pageFlip().turnToPage(resumePrompt - 1)
               setCurrentPage(resumePrompt)
               setResumePrompt(null)
             }}
@@ -327,28 +330,46 @@ function ReaderPage() {
         </button>
 
         <div
-          className="flex items-center justify-center gap-1"
           style={{
             transform: `scale(${zoom}) translate(${panX / zoom}px, ${panY / zoom}px)`,
             transformOrigin: "center center",
             transition: "none",
+            // com zoom, o arrasto vira pan e não vira flip
+            pointerEvents: zoom > 1 ? "none" : "auto",
+            width: settings.doublePage ? pageW * 2 : pageW,
           }}
         >
-          <img
-            key={currentPage}
-            src={pageUrl(filePath, fileType, currentPage)}
-            alt={`Página ${currentPage}`}
-            className="h-screen w-auto object-contain"
-          />
-
-          {settings.doublePage && currentPage + 1 <= pageCount && (
-            <img
-              key={currentPage + 1}
-              src={pageUrl(filePath, fileType, currentPage + 1)}
-              alt={`Página ${currentPage + 1}`}
-              className="h-screen w-auto object-contain"
-            />
-          )}
+          <Book
+            key={settings.doublePage ? "double" : "single"} // remonta ao trocar o modo
+            ref={bookRef}
+            width={pageW}
+            height={pageH}
+            size="fixed"
+            startPage={currentPage - 1}
+            showCover={false}
+            usePortrait={!settings.doublePage}
+            drawShadow
+            maxShadowOpacity={0.5}
+            flippingTime={700}
+            swipeDistance={30}
+            mobileScrollSupport={false}
+            useMouseEvents
+            onFlip={(e: { data: number }) => setCurrentPage(e.data + 1)}
+            className=""
+            style={{}}
+          >
+            {Array.from({ length: pageCount }, (_, i) => (
+              <FlipPage
+                key={i}
+                n={i + 1}
+                src={
+                  Math.abs(i + 1 - currentPage) <= PREFETCH + 1
+                    ? pageUrl(filePath, fileType, i + 1)
+                    : undefined
+                }
+              />
+            ))}
+          </Book>
         </div>
 
         <button
