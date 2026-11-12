@@ -27,6 +27,44 @@ function resolveLibraryPath(relativePath = "") {
   return resolved
 }
 
+// Valida os arquivos salvos no histórico
+app.post("/api/history/validate", (req, res) => {
+  try {
+    const { paths } = req.body
+
+    if (!Array.isArray(paths)) {
+      return res.status(400).json({
+        error: "Lista de caminhos inválida",
+      })
+    }
+
+    const validPaths = paths.filter((filePath) => {
+      try {
+        if (typeof filePath !== "string") return false
+
+        const resolvedPath = resolveLibraryPath(
+          path
+            .relative(comicsDir, path.resolve(filePath))
+            .split(path.sep)
+            .join("/"),
+        )
+
+        return fs.existsSync(resolvedPath) && fs.statSync(resolvedPath).isFile()
+      } catch {
+        return false
+      }
+    })
+
+    return res.json({ validPaths })
+  } catch (error) {
+    console.error("Erro ao validar histórico:", error)
+
+    return res.status(500).json({
+      error: "Erro ao validar histórico",
+    })
+  }
+})
+
 // GET /api/dirs?path=/caminho/da/biblioteca
 app.get("/api/dirs", (req, res) => {
   try {

@@ -10,11 +10,11 @@ import {
   BookOpenText,
   Trash2,
   FolderInput,
-  Info,
   X,
 } from "lucide-react"
 import SplitText from "../components/SplitText"
 import toast from "react-hot-toast"
+import HomeScreen from "./HomeScreen"
 
 interface FileItem {
   name: string
@@ -434,7 +434,7 @@ function MainPage() {
               animate={{ opacity: 1, y: 0 }}
               className="text-cv-text-muted text-sm md:text-base"
             >
-              Selecione uma pasta na biblioteca.
+              <HomeScreen />
             </motion.p>
           )}
           {loading && (

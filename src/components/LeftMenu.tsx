@@ -16,7 +16,7 @@ import Modal from "./Modal"
 import { useModal } from "../hooks/useModal"
 import Logo from "../static/img/logo-light.png"
 import LogoDark from "../static/img/logo.png"
-import { getHistory } from "../hooks/useHistory"
+import { getHistory, useHistory } from "../hooks/useHistory"
 import type { HistoryEntry } from "../hooks/useHistory"
 import toast, { Toaster } from "react-hot-toast"
 
@@ -85,12 +85,15 @@ function LeftMenu({
       )
   }, [])
 
+  const { refresh } = useHistory()
+
   // histórico de leitura
   useEffect(() => {
     setHistory(getHistory().slice(0, 4))
     const onFocus = () => setHistory(getHistory().slice(0, 4))
     window.addEventListener("focus", onFocus)
     return () => window.removeEventListener("focus", onFocus)
+    refresh()
   }, [])
 
   useEffect(() => {
