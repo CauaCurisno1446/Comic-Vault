@@ -17,6 +17,7 @@ import Logo from "../static/img/logo-light.png"
 import LogoDark from "../static/img/logo.png"
 import { getHistory } from "../hooks/useHistory"
 import type { HistoryEntry } from "../hooks/useHistory"
+import toast, { Toaster } from "react-hot-toast"
 
 const API = `http://${window.location.hostname}:3001`
 
@@ -149,7 +150,7 @@ function LeftMenu({
 
       if (!response.ok) {
         const error = await response.json()
-        alert(error.error)
+        toast.error(error.error)
         return
       }
 
@@ -161,9 +162,10 @@ function LeftMenu({
       setDirs(await dirsResponse.json())
       modalCriar.fechar()
       setNomePasta("")
+      toast.success("Pasta criada com sucesso!")
     } catch (error) {
       console.error("Erro ao criar pasta:", error)
-      alert("Não foi possível criar a pasta.")
+      toast.error("Não foi possível criar a pasta.")
     }
   }
 
@@ -188,7 +190,12 @@ function LeftMenu({
       const data = await response.json()
 
       if (!response.ok) {
-        alert(data.error || "Não foi possível renomear a pasta.")
+        toast.error(
+          data.error instanceof Error
+            ? data.error.message
+            : "O nome já existe.",
+        )
+        //alert(data.error || "Não foi possível renomear a pasta.")
         return
       }
 
@@ -206,9 +213,10 @@ function LeftMenu({
       modalEditar.fechar()
       setSelecionada(null)
       setNomeEditar("")
+      toast.success("Pasta renomeada com sucesso!")
     } catch (error) {
       console.error("Erro ao editar pasta:", error)
-      alert("Não foi possível renomear a pasta.")
+      toast.error("Não foi possível renomear a pasta.")
     }
   }
 
@@ -232,7 +240,11 @@ function LeftMenu({
       const data = await response.json()
 
       if (!response.ok) {
-        alert(data.error || "Não foi possível excluir a pasta.")
+        toast.error(
+          data.error instanceof Error
+            ? data.error.message
+            : "Erro ao excluir pasta.",
+        )
         return
       }
 
@@ -247,9 +259,10 @@ function LeftMenu({
       modalEditar.fechar()
       setSelecionada(null)
       setNomeEditar("")
+      toast.success("Pasta excluída com sucesso!")
     } catch (error) {
       console.error("Erro ao excluir pasta:", error)
-      alert("Não foi possível excluir a pasta.")
+      toast.error("Não foi possível excluir a pasta.")
     }
   }
 
@@ -483,6 +496,15 @@ function LeftMenu({
           </button>
         </div>
       </div>
+
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 4000,
+          className:
+            "bg-cv-card text-cv-text border border-cv-accent shadow-lg",
+        }}
+      />
     </div>
   )
 }

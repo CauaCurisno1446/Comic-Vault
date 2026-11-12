@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { X, FolderOpen } from "lucide-react"
 import type { Settings } from "../hooks/useSettings"
+import toast from "react-hot-toast"
 
 interface Props {
   settings: Settings
@@ -55,6 +56,10 @@ const THEMES = [
   { id: "sepia", label: "Sepia" },
 ]
 
+// Todos os avisos de configuração usam o mesmo id: se o usuário mexer em
+// várias opções seguidas, o toast é substituído em vez de empilhar.
+const SETTING_TOAST_ID = "setting"
+
 export function SettingsModal({
   settings,
   onUpdate,
@@ -75,8 +80,19 @@ export function SettingsModal({
   }, [onClose])
 
   function saveLibraryPath() {
-    localStorage.setItem("comicvault-library-path", libraryPath)
-    window.location.reload()
+    const path = libraryPath.trim()
+
+    if (!path) {
+      toast.error("Informe o caminho da biblioteca.")
+      return
+    }
+
+    localStorage.setItem("comicvault-library-path", path)
+
+    toast.success("Biblioteca atualizada! Recarregando...")
+
+    // Dá tempo de o toast aparecer antes de a página recarregar
+    setTimeout(() => window.location.reload(), 900)
   }
 
   return (
@@ -111,13 +127,24 @@ export function SettingsModal({
             label="Página dupla"
             description="Exibe duas páginas lado a lado como um livro aberto"
             value={settings.doublePage}
-            onChange={(v) => onUpdate("doublePage", v)}
+            onChange={(v) => {
+              onUpdate("doublePage", v)
+              toast.success(`Página dupla ${v ? "ativada" : "desativada"}`, {
+                id: SETTING_TOAST_ID,
+              })
+            }}
           />
           <Toggle
             label="Salvar progresso"
             description="Lembra a última página lida ao reabrir um arquivo"
             value={settings.saveProgress}
-            onChange={(v) => onUpdate("saveProgress", v)}
+            onChange={(v) => {
+              onUpdate("saveProgress", v)
+              toast.success(
+                `Salvar progresso ${v ? "ativado" : "desativado"}`,
+                { id: SETTING_TOAST_ID },
+              )
+            }}
           />
 
           {/* Tema */}
@@ -128,12 +155,15 @@ export function SettingsModal({
             {THEMES.map((t) => (
               <button
                 key={t.id}
-                onClick={() =>
+                onClick={() => {
                   onUpdate(
                     "theme" as keyof Settings,
                     t.id as Settings[keyof Settings],
                   )
-                }
+                  toast.success(`Tema ${t.label} aplicado`, {
+                    id: SETTING_TOAST_ID,
+                  })
+                }}
                 className={`py-2 px-3 cursor-pointer rounded-lg text-sm text-left transition-colors ${
                   (settings as any).theme === t.id
                     ? "bg-cv-accent text-white font-semibold"
@@ -146,7 +176,7 @@ export function SettingsModal({
           </div>
 
           {/* Diretório raiz */}
-          {showDirConfig && (
+          {/* {showDirConfig && (
             <>
               <p className="text-cv-text-subtle text-xs uppercase tracking-widest mt-6 mb-3">
                 Biblioteca
@@ -166,7 +196,7 @@ export function SettingsModal({
                 </button>
               </div>
             </>
-          )}
+          )} */}
         </div>
 
         {/* Footer */}

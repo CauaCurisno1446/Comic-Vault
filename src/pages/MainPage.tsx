@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react"
 import SplitText from "../components/SplitText"
+import toast, { Toaster } from "react-hot-toast"
 
 interface FileItem {
   name: string
@@ -79,7 +80,7 @@ function MoveModal({
           </p>
           <button
             onClick={onClose}
-            className="text-cv-text-muted hover:text-cv-text transition-colors"
+            className="cursor-pointer text-cv-text-muted hover:text-cv-text transition-colors"
             aria-label="Fechar"
           >
             <X size={18} />
@@ -217,6 +218,9 @@ function MainPage() {
     formData.append("file", file)
     formData.append("destination", selectedDir)
 
+    // O mesmo toast vai de "enviando" para sucesso/erro (via id)
+    const toastId = toast.loading("Enviando HQ...")
+
     try {
       const response = await fetch(`${API}/api/files`, {
         method: "POST",
@@ -229,7 +233,7 @@ function MainPage() {
         throw new Error(data.error || "Erro ao enviar HQ.")
       }
 
-      alert("HQ adicionada com sucesso!")
+      toast.success("HQ adicionada com sucesso!", { id: toastId })
 
       // Atualiza a listagem
       const filesResponse = await fetch(
@@ -242,7 +246,10 @@ function MainPage() {
     } catch (error) {
       console.error(error)
 
-      alert(error instanceof Error ? error.message : "Erro ao adicionar HQ.")
+      toast.error(
+        error instanceof Error ? error.message : "Erro ao adicionar HQ.",
+        { id: toastId },
+      )
     }
   }
 
@@ -266,10 +273,13 @@ function MainPage() {
       }
 
       setFiles((prev) => prev.filter((f) => f.path !== file.path))
+      toast.success("HQ excluída com sucesso!")
     } catch (error) {
       console.error(error)
 
-      alert(error instanceof Error ? error.message : "Erro ao excluir HQ.")
+      toast.error(
+        error instanceof Error ? error.message : "Erro ao excluir HQ.",
+      )
     }
   }
 
@@ -291,10 +301,11 @@ function MainPage() {
 
       // Ela não pertence mais a esta pasta
       setFiles((prev) => prev.filter((f) => f.path !== file.path))
+      toast.success(`HQ movida para "${destination.split("/").pop()}"`)
     } catch (error) {
       console.error(error)
 
-      alert(error instanceof Error ? error.message : "Erro ao mover HQ.")
+      toast.error(error instanceof Error ? error.message : "Erro ao mover HQ.")
     }
   }
 
@@ -467,7 +478,6 @@ function MainPage() {
       {/* Menu de ações do arquivo */}
       {menu && (
         <>
-          {/* Camada invisível: clicar fora fecha o menu */}
           <div
             className="fixed inset-0 z-40"
             onClick={() => setMenu(null)}
@@ -481,18 +491,18 @@ function MainPage() {
             style={{ top: menu.y, left: menu.x }}
             className="fixed z-50 w-44 bg-cv-card border border-cv-border rounded-lg shadow-2xl py-1"
           >
-            <button
+            {/* <button
               role="menuitem"
               onClick={() => {
                 const file = menu.file
                 setMenu(null)
                 selectInfo(file)
               }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-cv-text hover:bg-[var(--cv-accent-muted)] transition-colors"
+              className="cursor-pointer w-full flex items-center gap-2 px-3 py-2 text-sm text-cv-text hover:bg-[var(--cv-accent-muted)] transition-colors"
             >
               <Info size={15} />
               Informações
-            </button>
+            </button> */}
             <button
               role="menuitem"
               onClick={() => {
@@ -500,7 +510,7 @@ function MainPage() {
                 setMenu(null)
                 setMoving(file)
               }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-cv-text hover:bg-[var(--cv-accent-muted)] transition-colors"
+              className="cursor-pointer w-full flex items-center gap-2 px-3 py-2 text-sm text-cv-text hover:bg-[var(--cv-accent-muted)] transition-colors"
             >
               <FolderInput size={15} />
               Mover para...
@@ -512,7 +522,7 @@ function MainPage() {
                 setMenu(null)
                 deleteComic(file)
               }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-900/40 hover:text-red-300 transition-colors"
+              className="cursor-pointer w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-900/40 hover:text-red-300 transition-colors"
             >
               <Trash2 size={15} />
               Excluir
@@ -529,6 +539,15 @@ function MainPage() {
           onClose={() => setMoving(null)}
         />
       )}
+
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 4000,
+          className:
+            "bg-cv-card text-cv-text border border-cv-accent shadow-lg",
+        }}
+      />
     </div>
   )
 }
