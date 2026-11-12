@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useState, useCallback, useRef } from "react"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import HTMLFlipBook from "react-pageflip"
+import { motion, AnimatePresence } from "motion/react"
 import {
   ChevronLeft,
   ChevronRight,
@@ -65,25 +66,25 @@ function ReaderPage() {
   const bookRef = useRef<any>(null)
   const dragRef = useRef({ active: false, x: 0, y: 0, panX: 0, panY: 0 })
   const [isDragging, setIsDragging] = useState(false)
+  const [touching, setTouching] = useState(false)
+
+  // Durante um gesto (arrastar/pinça) a página tem que seguir o dedo/mouse
+  // sem atraso; fora disso (botões, teclado) o zoom e o pan são suavizados.
+  const interacting = isDragging || touching
 
   // Limite do pan para a página não sair totalmente da tela
-  const clampPan = useCallback(
-    (x: number, y: number, z: number) => {
-      const maxX = (z - 1) * (window.innerWidth / 2)
-      const maxY = (z - 1) * (window.innerHeight / 2)
-      return {
-        x: Math.min(Math.max(x, -maxX), maxX),
-        y: Math.min(Math.max(y, -maxY), maxY),
-      }
-    },
-    [],
-  )
+  const clampPan = useCallback((x: number, y: number, z: number) => {
+    const maxX = (z - 1) * (window.innerWidth / 2)
+    const maxY = (z - 1) * (window.innerHeight / 2)
+    return {
+      x: Math.min(Math.max(x, -maxX), maxX),
+      y: Math.min(Math.max(y, -maxY), maxY),
+    }
+  }, [])
 
   // Dimensões de cada página (respeita a largura da tela no mobile)
   const availH = window.innerHeight - TOP_BAR_AND_PROGRESS
-  const maxW = settings.doublePage
-    ? window.innerWidth / 2
-    : window.innerWidth
+  const maxW = settings.doublePage ? window.innerWidth / 2 : window.innerWidth
   const pageW = Math.round(Math.min(availH * PAGE_RATIO, maxW))
   const pageH = Math.round(pageW / PAGE_RATIO)
 
@@ -191,7 +192,7 @@ function ReaderPage() {
   if (loading) {
     return (
       <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
-        <p className="text-gray-400">Abrindo arquivo...</p>
+        <p className="text-gray-400 animate-pulse">Abrindo arquivo...</p>
       </div>
     )
   }
@@ -235,6 +236,7 @@ function ReaderPage() {
       }}
       onTouchStart={(e) => {
         const el = e.currentTarget as HTMLDivElement
+        setTouching(true)
 
         if (e.touches.length === 2) {
           const dx = e.touches[0].clientX - e.touches[1].clientX
@@ -288,6 +290,8 @@ function ReaderPage() {
       }}
       onTouchEnd={(e) => {
         const el = e.currentTarget as HTMLDivElement
+        // Ainda há dedo na tela? (ex.: soltou um dos dois dedos da pinça)
+        setTouching(e.touches.length > 0)
 
         if (el.dataset.isPinching === "true") {
           el.dataset.isPinching = "false"
@@ -303,38 +307,52 @@ function ReaderPage() {
       }}
     >
       {/* Modal de configurações */}
-      {showSettings && (
-        <SettingsModal
-          settings={settings}
-          onUpdate={update}
-          onClose={() => setShowSettings(false)}
-        />
-      )}
+      <AnimatePresence>
+        {showSettings && (
+          <SettingsModal
+            key="settings"
+            settings={settings}
+            onUpdate={update}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Prompt de retomar leitura */}
-      {resumePrompt && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 bg-cv-card border border-cv-border rounded-xl px-5 py-4 flex items-center gap-4 shadow-2xl">
-          <p className="text-cv-text text-sm">
-            Continuar da página <strong>{resumePrompt}</strong>?
-          </p>
-          <button
-            onClick={() => {
-              bookRef.current?.pageFlip().turnToPage(resumePrompt - 1)
-              setCurrentPage(resumePrompt)
-              setResumePrompt(null)
-            }}
-            className="bg-cv-accent text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-cv-accent-h transition-colors"
+      {/* Prompt de retomar leitura
+          (o -translate-x-1/2 do Tailwind foi trocado por x: "-50%" da Motion,
+          porque a Motion controla o transform inline e anularia a classe) */}
+      <AnimatePresence>
+        {resumePrompt && (
+          <motion.div
+            key="resume"
+            initial={{ opacity: 0, y: -16, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: -16, x: "-50%" }}
+            transition={{ type: "spring", duration: 0.4, bounce: 0.2 }}
+            className="absolute top-16 left-1/2 z-40 bg-cv-card border border-cv-border rounded-xl px-5 py-4 flex items-center gap-4 shadow-2xl"
           >
-            Continuar
-          </button>
-          <button
-            onClick={() => setResumePrompt(null)}
-            className="text-cv-text-muted hover:text-cv-text text-xs transition-colors"
-          >
-            Do início
-          </button>
-        </div>
-      )}
+            <p className="text-cv-text text-sm">
+              Continuar da página <strong>{resumePrompt}</strong>?
+            </p>
+            <button
+              onClick={() => {
+                bookRef.current?.pageFlip().turnToPage(resumePrompt - 1)
+                setCurrentPage(resumePrompt)
+                setResumePrompt(null)
+              }}
+              className="bg-cv-accent text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-cv-accent-h transition-colors"
+            >
+              Continuar
+            </button>
+            <button
+              onClick={() => setResumePrompt(null)}
+              className="text-cv-text-muted hover:text-cv-text text-xs transition-colors"
+            >
+              Do início
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Barra superior */}
       <div
@@ -344,7 +362,7 @@ function ReaderPage() {
       >
         <button
           onClick={() => navigate(-1)}
-          className="text-gray-400 hover:text-white transition-colors"
+          className="cursor-pointer text-gray-400 hover:text-white transition-colors"
         >
           <X size={20} />
         </button>
@@ -359,7 +377,7 @@ function ReaderPage() {
 
         <button
           onClick={() => setZoom((z) => Math.max(z - 0.25, 1))}
-          className="text-gray-400 hover:text-white transition-colors"
+          className="cursor-pointer text-gray-400 hover:text-white transition-colors"
         >
           <ZoomOut size={18} />
         </button>
@@ -368,14 +386,14 @@ function ReaderPage() {
         </span>
         <button
           onClick={() => setZoom((z) => Math.min(z + 0.25, 3))}
-          className="text-gray-400 hover:text-white transition-colors"
+          className="cursor-pointer text-gray-400 hover:text-white transition-colors"
         >
           <ZoomIn size={18} />
         </button>
 
         <button
           onClick={() => setShowSettings(true)}
-          className="text-gray-400 hover:text-white transition-colors"
+          className="cursor-pointer text-gray-400 hover:text-white transition-colors"
         >
           <Settings size={18} />
         </button>
@@ -386,7 +404,7 @@ function ReaderPage() {
         <button
           onClick={goPrev}
           disabled={currentPage === 1 || zoom > 1}
-          className={`absolute left-2 z-10 text-white bg-black/50 hover:bg-black/80 rounded-full p-2 transition-all disabled:opacity-20 ${
+          className={`cursor-pointer absolute left-2 z-10 text-white bg-black/50 hover:bg-black/80 rounded-full p-2 transition-all disabled:opacity-20 ${
             showUI ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
         >
@@ -397,7 +415,9 @@ function ReaderPage() {
           style={{
             transform: `scale(${zoom}) translate(${panX / zoom}px, ${panY / zoom}px)`,
             transformOrigin: "center center",
-            transition: "none",
+            transition: interacting
+              ? "none"
+              : "transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)",
             // com zoom, o arrasto vira pan e não vira flip
             pointerEvents: zoom > 1 ? "none" : "auto",
             width: settings.doublePage ? pageW * 2 : pageW,
@@ -414,7 +434,7 @@ function ReaderPage() {
             usePortrait={!settings.doublePage}
             drawShadow
             maxShadowOpacity={0.5}
-            flippingTime={400}
+            flippingTime={700}
             swipeDistance={30}
             mobileScrollSupport={false}
             useMouseEvents
@@ -439,7 +459,7 @@ function ReaderPage() {
         <button
           onClick={goNext}
           disabled={currentPage >= pageCount || zoom > 1}
-          className={`absolute right-2 z-10 text-white bg-black/50 hover:bg-black/80 rounded-full p-2 transition-all disabled:opacity-20 ${
+          className={`cursor-pointer absolute right-2 z-10 text-white bg-black/50 hover:bg-black/80 rounded-full p-2 transition-all disabled:opacity-20 ${
             showUI ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
         >

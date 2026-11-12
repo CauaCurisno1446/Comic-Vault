@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { X, FolderOpen } from "lucide-react"
 import type { Settings } from "../hooks/useSettings"
 import toast from "react-hot-toast"
+import { motion } from "motion/react"
 
 interface Props {
   settings: Settings
@@ -96,14 +97,24 @@ export function SettingsModal({
   }
 
   return (
-    <div
+    <motion.div
       ref={overlayRef}
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose()
       }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.15 }}
       className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center"
     >
-      <div className="bg-cv-card rounded-xl w-full max-w-md mx-4 shadow-2xl max-h-[90vh] overflow-y-auto border border-cv-border">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 12 }}
+        transition={{ type: "spring", duration: 0.3, bounce: 0.15 }}
+        className="bg-cv-card rounded-xl w-full max-w-md mx-4 shadow-2xl max-h-[90vh] overflow-y-auto border border-cv-border"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-cv-border sticky top-0 bg-cv-card">
           <h2 className="text-cv-text font-semibold text-base">
@@ -176,7 +187,7 @@ export function SettingsModal({
           </div>
 
           {/* Diretório raiz */}
-          {/* {showDirConfig && (
+          {showDirConfig && (
             <>
               <p className="text-cv-text-subtle text-xs uppercase tracking-widest mt-6 mb-3">
                 Biblioteca
@@ -196,7 +207,7 @@ export function SettingsModal({
                 </button>
               </div>
             </>
-          )} */}
+          )}
         </div>
 
         {/* Footer */}
@@ -208,7 +219,7 @@ export function SettingsModal({
             Fechar
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   )
 }

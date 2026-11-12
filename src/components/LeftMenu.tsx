@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { motion, AnimatePresence, MotionConfig } from "motion/react"
 import {
   Home,
   Search,
@@ -190,12 +191,9 @@ function LeftMenu({
       const data = await response.json()
 
       if (!response.ok) {
-        toast.error(
-          data.error instanceof Error
-            ? data.error.message
-            : "O nome já existe.",
-        )
-        //alert(data.error || "Não foi possível renomear a pasta.")
+        // O backend devolve a mensagem como string em data.error
+        // (o instanceof Error anterior nunca era verdadeiro e escondia a mensagem real)
+        toast.error(data.error ?? "Não foi possível renomear a pasta.")
         return
       }
 
@@ -240,11 +238,8 @@ function LeftMenu({
       const data = await response.json()
 
       if (!response.ok) {
-        toast.error(
-          data.error instanceof Error
-            ? data.error.message
-            : "Erro ao excluir pasta.",
-        )
+        // Ex.: "A pasta não está vazia. Remova seu conteúdo primeiro."
+        toast.error(data.error ?? "Erro ao excluir pasta.")
         return
       }
 
@@ -267,245 +262,325 @@ function LeftMenu({
   }
 
   return (
-    <div className="w-full lg:min-h-screen lg:w-1/4 xl:w-1/5 flex flex-col lg:items-center gap-3 lg:gap-4 p-2 lg:p-4">
-      {modalCriar.aberto && (
-        <Modal
-          icone={<Folder size={20} />}
-          titulo="Adicionar Pasta de HQ"
-          onClose={modalCriar.fechar}
-        >
-          <input
-            type="text"
-            placeholder="Nome da nova pasta..."
-            className="flex-1 bg-cv-card-hover text-cv-text text-sm px-3 py-1.5 rounded-lg border border-cv-border focus:outline-none focus:border-cv-accent duration-200"
-            value={nomePasta}
-            onChange={(e) => setNomePasta(e.target.value)}
-          />
-          <button
-            type="submit"
-            className="px-5 py-2 text-sm bg-[var(--cv-accent)] hover:bg-[var(--cv-accent-hover)] text-[var(--cv-text)] font-bold rounded-lg transition-colors cursor-pointer"
-            onClick={criarPasta}
-          >
-            Adicionar
-          </button>
-        </Modal>
-      )}
-
-      {modalEditar.aberto && (
-        <Modal
-          icone={<SquarePen size={20} />}
-          titulo="Editar Pasta"
-          onClose={modalEditar.fechar}
-        >
-          <input
-            type="text"
-            placeholder="Nome da nova pasta..."
-            className="flex-1 bg-cv-card-hover text-cv-text text-sm px-3 py-1.5 rounded-lg border border-cv-border focus:outline-none focus:border-cv-accent duration-200"
-            value={nomeEditar}
-            onChange={(e) => setNomeEditar(e.target.value)}
-          />
-
-          <div className="flex justify-end gap-3">
-            <button
-              type="submit"
-              className="px-5 py-2 text-sm bg-cv-card hover:bg-cv-card-hover text-[var(--cv-text)] font-bold rounded-lg transition-colors cursor-pointer"
-              onClick={excluirPasta}
+    // reducedMotion="user": respeita quem desativou animações no sistema
+    <MotionConfig reducedMotion="user">
+      <div className="w-full lg:min-h-screen lg:w-1/4 xl:w-1/5 flex flex-col lg:items-center gap-3 lg:gap-4 p-2 lg:p-4">
+        {/* AnimatePresence permite animar a SAÍDA dos modais.
+            Para o fade/scale aparecer, o elemento raiz do Modal.tsx precisa ser
+            um motion.div (veja a explicação junto com este arquivo). */}
+        <AnimatePresence>
+          {modalCriar.aberto && (
+            <Modal
+              key="modal-criar"
+              icone={<Folder size={20} />}
+              titulo="Adicionar Pasta de HQ"
+              onClose={modalCriar.fechar}
             >
-              Excluir
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 text-sm bg-[var(--cv-accent)] hover:bg-[var(--cv-accent-hover)] text-[var(--cv-text)] font-bold rounded-lg transition-colors cursor-pointer"
-              onClick={editarPasta}
-            >
-              Salvar
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      <div className="w-full lg:max-w-xs flex flex-col gap-2">
-        <div className="flex items-stretch gap-3">
-          <img
-            src={lightThemes.includes(tema) ? LogoDark : Logo}
-            alt="ComicVault"
-            className="w-16 lg:w-20 shrink-0 object-contain pointer-events-none select-none"
-          />
-
-          <div className="flex-1 flex items-center justify-center gap-2 bg-cv-card rounded-lg p-2 lg:p-3">
-            <button
-              onClick={handleHomeClick}
-              title="Página Inicial"
-              aria-label="Página Inicial"
-              className={`w-10 h-10 flex items-center justify-center rounded-lg cursor-pointer transition-colors ${
-                !selectedDir
-                  ? "bg-cv-border text-cv-text"
-                  : "text-cv-text-muted hover:bg-cv-card-hover hover:text-cv-text"
-              }`}
-            >
-              <Home size={20} />
-            </button>
-
-            <button
-              onClick={handleSearchToggle}
-              title="Pesquisar"
-              aria-label="Pesquisar"
-              className={`w-auto h-10 flex items-center justify-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
-                showSearch
-                  ? "bg-cv-border text-cv-text"
-                  : "text-cv-text-muted hover:bg-cv-card-hover hover:text-cv-text"
-              }`}
-            >
-              <Search size={20} />
-              Pesquisar
-            </button>
-          </div>
-        </div>
-
-        {/* Campo de busca — aparece quando clicar em Pesquisar */}
-        {showSearch && (
-          <div className="flex items-center gap-2 bg-cv-card rounded-lg p-2">
-            <input
-              autoFocus
-              value={search}
-              onChange={(e) => onSearch(e.target.value)}
-              placeholder="Buscar arquivos..."
-              className="flex-1 min-w-0 bg-cv-card-hover text-cv-text text-sm px-3 py-1.5 rounded-lg border border-cv-border focus:outline-none focus:border-cv-accent"
-            />
-            {search && (
+              <input
+                type="text"
+                placeholder="Nome da nova pasta..."
+                className="flex-1 bg-cv-card-hover text-cv-text text-sm px-3 py-1.5 rounded-lg border border-cv-border focus:outline-none focus:border-cv-accent duration-200"
+                value={nomePasta}
+                onChange={(e) => setNomePasta(e.target.value)}
+              />
               <button
-                onClick={() => onSearch("")}
-                className="text-cv-text-muted hover:text-cv-text cursor-pointer"
-                aria-label="Limpar busca"
+                type="submit"
+                className="px-5 py-2 text-sm bg-[var(--cv-accent)] hover:bg-[var(--cv-accent-hover)] text-[var(--cv-text)] font-bold rounded-lg transition-colors cursor-pointer"
+                onClick={criarPasta}
               >
-                <X size={16} />
+                Adicionar
               </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Painel principal: biblioteca + lidos recentemente + configurações */}
-      <div className="w-full lg:max-w-xs flex-1 lg:min-h-64 bg-cv-card rounded-lg flex flex-col p-0">
-        {/* Cabeçalho da biblioteca */}
-        <div className="w-full flex items-center p-3 lg:p-5 gap-2 text-cv-text text-base lg:text-lg font-bold border-b border-cv-border">
-          <Book size={20} />
-          <span>Biblioteca</span>
-          <span className="ml-auto">
-            <div
-              onClick={modalCriar.abrir}
-              className="text-cv-text rounded-full w-8 h-8 flex items-center justify-center hover:bg-cv-card-hover cursor-pointer transition-colors"
-            >
-              <Plus size={20} />
-            </div>
-          </span>
-        </div>
-
-        {/* Lista de pastas */}
-        <div className="flex flex-row lg:flex-col gap-2 px-3 pt-3 pb-3 lg:pb-4 overflow-x-auto lg:overflow-y-auto lg:flex-1">
-          {loading && (
-            <p className="text-cv-text-muted text-sm px-2">Carregando...</p>
+            </Modal>
           )}
-          {!loading && dirs.length === 0 && (
-            <p className="text-cv-text-muted text-sm px-2">Nenhuma pasta.</p>
-          )}
-          {dirs.map((dir) => (
-            <div
-              key={dir.path}
-              onClick={() => onSelectDir(dir.path)}
-              className={`
-                flex-shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2 rounded-lg cursor-pointer
-                transition-colors text-xs lg:text-sm font-medium border lg:border-transparent
-                ${
-                  selectedDir === dir.path
-                    ? "bg-cv-border text-cv-text border-cv-border"
-                    : "text-cv-text-muted hover:bg-cv-card-hover hover:text-cv-text border-cv-border/50 lg:border-transparent"
-                }
-              `}
-            >
-              <Folder size={14} className="shrink-0" />
-              <span className="truncate max-w-[120px] lg:max-w-none">
-                {dir.name}
-              </span>
 
-              <div className="w-8 h-8 ml-auto flex items-center justify-center rounded-lg hover:bg-[var(--cv-accent-muted)] duration-200">
+          {modalEditar.aberto && (
+            <Modal
+              key="modal-editar"
+              icone={<SquarePen size={20} />}
+              titulo="Editar Pasta"
+              onClose={modalEditar.fechar}
+            >
+              <input
+                type="text"
+                placeholder="Nome da nova pasta..."
+                className="flex-1 bg-cv-card-hover text-cv-text text-sm px-3 py-1.5 rounded-lg border border-cv-border focus:outline-none focus:border-cv-accent duration-200"
+                value={nomeEditar}
+                onChange={(e) => setNomeEditar(e.target.value)}
+              />
+
+              <div className="flex justify-end gap-3">
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    abrirModalEdicao(dir)
-                  }}
-                  className="w-full h-full flex items-center justify-center cursor-pointer"
+                  type="submit"
+                  className="px-5 py-2 text-sm bg-cv-card hover:bg-cv-card-hover text-[var(--cv-text)] font-bold rounded-lg transition-colors cursor-pointer"
+                  onClick={excluirPasta}
                 >
-                  <EllipsisVertical size={18} />
+                  Excluir
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-sm bg-[var(--cv-accent)] hover:bg-[var(--cv-accent-hover)] text-[var(--cv-text)] font-bold rounded-lg transition-colors cursor-pointer"
+                  onClick={editarPasta}
+                >
+                  Salvar
                 </button>
               </div>
-            </div>
-          ))}
-        </div>
+            </Modal>
+          )}
+        </AnimatePresence>
 
-        {/* Lidos recentemente */}
-        <div className="px-3 lg:px-4 pb-3 mt-auto">
-          <div className="flex items-center gap-2 text-cv-text text-xs lg:text-sm font-bold mb-2">
-            <History size={16} />
-            <span>Lidos recentemente</span>
+        <div className="w-full lg:max-w-xs flex flex-col gap-2">
+          <div className="flex items-stretch gap-3">
+            <motion.img
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4 }}
+              src={lightThemes.includes(tema) ? LogoDark : Logo}
+              alt="ComicVault"
+              className="w-16 lg:w-20 shrink-0 object-contain pointer-events-none select-none"
+            />
+
+            <div className="flex-1 flex items-center justify-center gap-2 bg-cv-card rounded-lg p-2 lg:p-3">
+              <motion.button
+                whileTap={{ scale: 0.92 }}
+                onClick={handleHomeClick}
+                title="Página Inicial"
+                aria-label="Página Inicial"
+                className={`w-10 h-10 flex items-center justify-center rounded-lg cursor-pointer transition-colors ${
+                  !selectedDir
+                    ? "bg-cv-border text-cv-text"
+                    : "text-cv-text-muted hover:bg-cv-card-hover hover:text-cv-text"
+                }`}
+              >
+                <Home size={20} />
+              </motion.button>
+
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleSearchToggle}
+                title="Pesquisar"
+                aria-label="Pesquisar"
+                className={`w-auto h-10 flex items-center justify-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
+                  showSearch
+                    ? "bg-cv-border text-cv-text"
+                    : "text-cv-text-muted hover:bg-cv-card-hover hover:text-cv-text"
+                }`}
+              >
+                <Search size={20} />
+                Pesquisar
+              </motion.button>
+            </div>
           </div>
 
-          {history.length === 0 ? (
-            <p className="text-cv-text-subtle text-xs">
-              Nenhum arquivo lido ainda.
-            </p>
-          ) : (
-            <div className="grid grid-cols-4 gap-2">
-              {history.map((entry) => (
-                <div key={entry.path} className="flex flex-col gap-1 min-w-0">
-                  <div className="w-full aspect-[2/3] bg-cv-card-hover rounded overflow-hidden">
-                    <img
-                      src={`${API}/api/cover?path=${encodeURIComponent(entry.path)}&type=${entry.type}`}
-                      alt={entry.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        ;(e.target as HTMLImageElement).style.display = "none"
-                      }}
-                    />
-                  </div>
-                  <div className="w-full h-0.5 bg-cv-border rounded">
-                    <div
-                      className="h-full bg-cv-accent rounded"
-                      style={{
-                        width: `${entry.pageCount > 0 ? (entry.currentPage / entry.pageCount) * 100 : 0}%`,
-                      }}
-                    />
-                  </div>
-                  <p className="text-cv-text-muted text-[9px] truncate">
-                    {entry.name}
-                  </p>
-                </div>
-              ))}
+          {/* Campo de busca — aparece quando clicar em Pesquisar */}
+          <AnimatePresence>
+            {showSearch && (
+              <motion.div
+                key="search"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.15 }}
+                className="flex items-center gap-2 bg-cv-card rounded-lg p-2"
+              >
+                <input
+                  autoFocus
+                  value={search}
+                  onChange={(e) => onSearch(e.target.value)}
+                  placeholder="Buscar arquivos..."
+                  className="flex-1 min-w-0 bg-cv-card-hover text-cv-text text-sm px-3 py-1.5 rounded-lg border border-cv-border focus:outline-none focus:border-cv-accent"
+                />
+                {search && (
+                  <button
+                    onClick={() => onSearch("")}
+                    className="text-cv-text-muted hover:text-cv-text cursor-pointer"
+                    aria-label="Limpar busca"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Painel principal: biblioteca + lidos recentemente + configurações */}
+        <div className="w-full lg:max-w-xs flex-1 lg:min-h-64 bg-cv-card rounded-lg flex flex-col p-0">
+          {/* Cabeçalho da biblioteca */}
+          <div className="w-full flex items-center p-3 lg:p-5 gap-2 text-cv-text text-base lg:text-lg font-bold border-b border-cv-border">
+            <Book size={20} />
+            <span>Biblioteca</span>
+            <span className="ml-auto">
+              <motion.div
+                whileHover={{ rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={modalCriar.abrir}
+                className="text-cv-text rounded-full w-8 h-8 flex items-center justify-center hover:bg-cv-card-hover cursor-pointer transition-colors"
+              >
+                <Plus size={20} />
+              </motion.div>
+            </span>
+          </div>
+
+          {/* Lista de pastas */}
+          <div className="flex flex-row lg:flex-col gap-2 px-3 pt-3 pb-3 lg:pb-4 overflow-x-auto lg:overflow-y-auto lg:flex-1">
+            {loading && (
+              <p className="text-cv-text-muted text-sm px-2 animate-pulse">
+                Carregando...
+              </p>
+            )}
+            {!loading && dirs.length === 0 && (
+              <p className="text-cv-text-muted text-sm px-2">Nenhuma pasta.</p>
+            )}
+            <AnimatePresence initial>
+              {dirs.map((dir, index) => {
+                const ativa = selectedDir === dir.path
+
+                return (
+                  <motion.div
+                    key={dir.path}
+                    layout="position"
+                    initial={{ opacity: 0, x: -12 }}
+                    // O delay fica dentro do animate para valer só na entrada
+                    animate={{
+                      opacity: 1,
+                      x: 0,
+                      transition: {
+                        duration: 0.25,
+                        delay: Math.min(index, 10) * 0.04,
+                      },
+                    }}
+                    exit={{
+                      opacity: 0,
+                      x: -12,
+                      transition: { duration: 0.15 },
+                    }}
+                    whileHover={{ x: 2 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => onSelectDir(dir.path)}
+                    className={`
+                      relative isolate flex-shrink-0 lg:w-full flex items-center gap-2 lg:gap-3 px-3 py-2 rounded-lg cursor-pointer
+                      transition-colors text-xs lg:text-sm font-medium border lg:border-transparent
+                      ${
+                        ativa
+                          ? "text-cv-text border-cv-border"
+                          : "text-cv-text-muted hover:bg-cv-card-hover hover:text-cv-text border-cv-border/50 lg:border-transparent"
+                      }
+                    `}
+                  >
+                    {/* Fundo da pasta ativa: desliza de uma pasta para outra (layoutId) */}
+                    {ativa && (
+                      <motion.span
+                        layoutId="pasta-ativa"
+                        transition={{
+                          type: "spring",
+                          duration: 0.35,
+                          bounce: 0.15,
+                        }}
+                        className="absolute inset-0 -z-10 rounded-lg bg-cv-border"
+                      />
+                    )}
+
+                    <Folder size={14} className="shrink-0" />
+                    <span className="truncate max-w-[120px] lg:max-w-none">
+                      {dir.name}
+                    </span>
+
+                    <div className="w-8 h-8 ml-auto flex items-center justify-center rounded-lg hover:bg-[var(--cv-accent-muted)] duration-200">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          abrirModalEdicao(dir)
+                        }}
+                        className="w-full h-full flex items-center justify-center cursor-pointer"
+                      >
+                        <EllipsisVertical size={18} />
+                      </button>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
+          </div>
+
+          {/* Lidos recentemente */}
+          <div className="px-3 lg:px-4 pb-3 mt-auto">
+            <div className="flex items-center gap-2 text-cv-text text-xs lg:text-sm font-bold mb-2">
+              <History size={16} />
+              <span>Lidos recentemente</span>
             </div>
-          )}
+
+            {history.length === 0 ? (
+              <p className="text-cv-text-subtle text-xs">
+                Nenhum arquivo lido ainda.
+              </p>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                {history.map((entry, index) => (
+                  <motion.div
+                    key={entry.path}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                      transition: { duration: 0.25, delay: index * 0.05 },
+                    }}
+                    whileHover={{ y: -3 }}
+                    className="flex flex-col gap-1 min-w-0"
+                  >
+                    <div className="w-full aspect-[2/3] bg-cv-card-hover rounded overflow-hidden">
+                      <img
+                        src={`${API}/api/cover?path=${encodeURIComponent(entry.path)}&type=${entry.type}`}
+                        alt={entry.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          ;(e.target as HTMLImageElement).style.display = "none"
+                        }}
+                      />
+                    </div>
+                    <div className="w-full h-0.5 bg-cv-border rounded overflow-hidden">
+                      {/* A barra de progresso cresce até o valor atual */}
+                      <motion.div
+                        className="h-full bg-cv-accent rounded"
+                        initial={{ width: 0 }}
+                        animate={{
+                          width: `${entry.pageCount > 0 ? (entry.currentPage / entry.pageCount) * 100 : 0}%`,
+                        }}
+                        transition={{ duration: 0.6, delay: 0.2 }}
+                      />
+                    </div>
+                    <p className="text-cv-text-muted text-[9px] truncate">
+                      {entry.name}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Configurações */}
+          <div className="px-3 lg:px-4 pb-3 lg:pb-4 shrink-0">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={onOpenSettings}
+              className="w-full flex items-center justify-center lg:justify-start gap-2 bg-cv-accent text-cv-text text-sm font-bold cursor-pointer transition-colors hover:bg-[var(--cv-accent-hover)] p-3 rounded-lg"
+            >
+              <Settings size={18} />
+              <span>Configurações</span>
+            </motion.button>
+          </div>
         </div>
 
-        {/* Configurações */}
-        <div className="px-3 lg:px-4 pb-3 lg:pb-4 shrink-0">
-          <button
-            onClick={onOpenSettings}
-            className="w-full flex items-center justify-center lg:justify-start gap-2 bg-cv-accent text-cv-text text-sm font-bold cursor-pointer transition-colors hover:bg-[var(--cv-accent-hover)] p-3 rounded-lg active:scale-95 lg:active:scale-100"
-          >
-            <Settings size={18} />
-            <span>Configurações</span>
-          </button>
-        </div>
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            duration: 4000,
+            className:
+              "bg-cv-card text-cv-text border border-cv-accent shadow-lg",
+          }}
+        />
       </div>
-
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 4000,
-          className:
-            "bg-cv-card text-cv-text border border-cv-accent shadow-lg",
-        }}
-      />
-    </div>
+    </MotionConfig>
   )
 }
 
