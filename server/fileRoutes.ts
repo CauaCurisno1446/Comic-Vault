@@ -3,7 +3,7 @@ import multer from "multer"
 import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import { resolveLibraryPath } from "./Library.ts"
+import { comicsDir, resolveLibraryPath } from "./library"
 
 const router = Router()
 
@@ -127,6 +127,153 @@ router.post("/", (req, res) => {
       return res.status(500).json({ error: "Erro ao adicionar HQ." })
     }
   })
+})
+
+// Ou deu certo (resolved) ou deu erro (error + status). O tipo explícito é o que
+// faz o `"error" in comic` estreitar corretamente nas rotas.
+type ComicResult = { resolved: string } | { error: string; status: number }
+
+// Resolve um arquivo de HQ dentro da biblioteca (valida caminho, extensão e tipo)
+async function resolveComic(input: unknown): Promise<ComicResult> {
+  if (typeof input !== "string" || !input) {
+    return { error: "Arquivo não informado.", status: 400 as const }
+  }
+
+  let resolved: string
+  try {
+    resolved = resolveLibraryPath(input)
+  } catch {
+    return { error: "Arquivo inválido.", status: 403 as const }
+  }
+
+  // Só mexe em HQs; nunca em qualquer arquivo que esteja na biblioteca
+  if (!ALLOWED.includes(path.extname(resolved).toLowerCase())) {
+    return { error: "Formato de arquivo não permitido.", status: 400 as const }
+  }
+
+  try {
+    if (!(await fs.stat(resolved)).isFile()) {
+      return { error: "O caminho não é um arquivo.", status: 400 as const }
+    }
+  } catch (error: any) {
+    if (error.code === "ENOENT") {
+      return { error: "Arquivo não encontrado.", status: 404 as const }
+    }
+    throw error
+  }
+
+  return { resolved }
+}
+
+// DELETE /api/files?path=<arquivo>
+router.delete("/", async (req, res) => {
+  try {
+    const comic = await resolveComic(req.query.path)
+
+    if ("error" in comic) {
+      return res.status(comic.status).json({ error: comic.error })
+    }
+
+    await fs.unlink(comic.resolved)
+
+    return res.json({ message: "HQ excluída com sucesso!" })
+  } catch (error) {
+    console.error("Erro ao excluir HQ:", error)
+    return res.status(500).json({ error: "Erro ao excluir HQ." })
+  }
+})
+
+// PATCH /api/files/move   body: { path, destination }
+router.patch("/move", async (req, res) => {
+  try {
+    const { path: filePath, destination } = req.body ?? {}
+
+    const comic = await resolveComic(filePath)
+
+    if ("error" in comic) {
+      return res.status(comic.status).json({ error: comic.error })
+    }
+
+    if (typeof destination !== "string" || !destination) {
+      return res.status(400).json({ error: "Destino não informado." })
+    }
+
+    let destinationPath: string
+    try {
+      destinationPath = resolveLibraryPath(destination)
+    } catch {
+      return res.status(403).json({ error: "Destino inválido." })
+    }
+
+    try {
+      if (!(await fs.stat(destinationPath)).isDirectory()) {
+        return res.status(400).json({ error: "O destino não é uma pasta." })
+      }
+    } catch (error: any) {
+      if (error.code !== "ENOENT") throw error
+      return res.status(400).json({ error: "A pasta de destino não existe." })
+    }
+
+    if (path.dirname(comic.resolved) === destinationPath) {
+      return res.status(400).json({ error: "O arquivo já está nessa pasta." })
+    }
+
+    const finalPath = path.join(destinationPath, path.basename(comic.resolved))
+
+    // Evita sobrescrever uma HQ com o mesmo nome na pasta de destino
+    try {
+      await fs.access(finalPath)
+      return res
+        .status(409)
+        .json({
+          error: "Já existe um arquivo com esse nome na pasta de destino.",
+        })
+    } catch (error: any) {
+      if (error.code !== "ENOENT") throw error
+    }
+
+    await moveFile(comic.resolved, finalPath)
+
+    return res.json({ message: "HQ movida com sucesso!", path: finalPath })
+  } catch (error) {
+    console.error("Erro ao mover HQ:", error)
+    return res.status(500).json({ error: "Erro ao mover HQ." })
+  }
+})
+
+// GET /api/files/folders — todas as pastas da biblioteca (para o "Mover para...")
+// Os caminhos seguem o mesmo formato de /api/dirs (relativos, com "/").
+async function listFolders(
+  dir: string,
+  acc: { name: string; path: string }[] = [],
+) {
+  const entries = await fs.readdir(dir, { withFileTypes: true })
+
+  for (const entry of entries) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue
+
+    const full = path.join(dir, entry.name)
+
+    acc.push({
+      name: entry.name,
+      path: path.relative(comicsDir, full).split(path.sep).join("/"),
+    })
+
+    await listFolders(full, acc)
+  }
+
+  return acc
+}
+
+router.get("/folders", async (_req, res) => {
+  try {
+    const folders = await listFolders(comicsDir)
+    folders.sort((a, b) => a.path.localeCompare(b.path))
+    return res.json(folders)
+  } catch (error) {
+    console.error("Erro ao listar pastas:", error)
+    return res.status(500).json({ error: "Erro ao listar pastas." })
+  }
 })
 
 export default router

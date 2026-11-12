@@ -2,13 +2,17 @@ import { useEffect, useState, useRef } from "react"
 import { useOutletContext, useNavigate } from "react-router-dom"
 import type { SelectedFile } from "../layout/MainLayout"
 import { isCompleted } from "../hooks/useReadingProgress"
-import { FileExclamationPoint, Loader, Plus, BookOpenText } from "lucide-react"
+import {
+  FileExclamationPoint,
+  Loader,
+  Plus,
+  BookOpenText,
+  Trash2,
+  FolderInput,
+  Info,
+  X,
+} from "lucide-react"
 import SplitText from "../components/SplitText"
-
-interface OutletContext {
-  selectedDir: string | null
-  setSelectedFile: (file: SelectedFile) => void
-}
 
 interface FileItem {
   name: string
@@ -22,15 +26,144 @@ interface OutletContext {
   search: string
 }
 
+interface FolderItem {
+  name: string
+  path: string
+}
+
 const API = `http://${window.location.hostname}:3001`
+
+// Compara caminhos ignorando "\" x "/" e barras nas pontas
+const normalizePath = (p: string) =>
+  p.replace(/\\/g, "/").replace(/^\/|\/$/g, "")
+
+/** Modal para escolher a pasta de destino ao mover uma HQ */
+function MoveModal({
+  file,
+  currentDir,
+  onMove,
+  onClose,
+}: {
+  file: FileItem
+  currentDir: string
+  onMove: (destination: string) => void
+  onClose: () => void
+}) {
+  const [folders, setFolders] = useState<FolderItem[] | null>(null)
+
+  useEffect(() => {
+    fetch(`${API}/api/files/folders`)
+      .then((r) => r.json())
+      .then((data: FolderItem[]) =>
+        setFolders(
+          data.filter(
+            (f) => normalizePath(f.path) !== normalizePath(currentDir),
+          ),
+        ),
+      )
+      .catch(() => setFolders([]))
+  }, [currentDir])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-cv-card border border-cv-border rounded-xl w-full max-w-md max-h-[80vh] flex flex-col shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-2 p-4 border-b border-cv-border">
+          <p className="text-cv-text text-sm font-semibold flex-1 truncate">
+            Mover "{file.name}" para...
+          </p>
+          <button
+            onClick={onClose}
+            className="text-cv-text-muted hover:text-cv-text transition-colors"
+            aria-label="Fechar"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto p-2">
+          {folders === null && (
+            <p className="text-cv-text-muted text-sm p-3">
+              Carregando pastas...
+            </p>
+          )}
+          {folders?.length === 0 && (
+            <p className="text-cv-text-muted text-sm p-3">
+              Nenhuma outra pasta disponível.
+            </p>
+          )}
+          {folders?.map((folder) => (
+            <button
+              key={folder.path}
+              onClick={() => onMove(folder.path)}
+              className="w-full text-left text-cv-text text-sm px-3 py-2 rounded-lg hover:bg-[var(--cv-accent-muted)] transition-colors"
+              title={folder.path}
+            >
+              {folder.name}
+              {folder.path !== folder.name && (
+                <span className="block text-cv-text-muted text-xs truncate">
+                  {folder.path}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function MainPage() {
   const { selectedDir, setSelectedFile, search } =
     useOutletContext<OutletContext>()
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(false)
+  const [moving, setMoving] = useState<FileItem | null>(null)
+  const [menu, setMenu] = useState<{
+    file: FileItem
+    x: number
+    y: number
+  } | null>(null)
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Fecha o menu com Esc ou ao redimensionar a janela
+  useEffect(() => {
+    if (!menu) return
+    const close = () => setMenu(null)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close()
+    }
+    window.addEventListener("keydown", onKey)
+    window.addEventListener("resize", close)
+    return () => {
+      window.removeEventListener("keydown", onKey)
+      window.removeEventListener("resize", close)
+    }
+  }, [menu])
+
+  // Abre o menu junto ao botão "···" (posição fixa, então o overflow do card não corta)
+  function openMenu(e: React.MouseEvent<HTMLButtonElement>, file: FileItem) {
+    e.stopPropagation()
+    const rect = e.currentTarget.getBoundingClientRect()
+    const width = 176
+    const height = 132
+
+    const x = Math.max(
+      8,
+      Math.min(rect.right - width, window.innerWidth - width - 8),
+    )
+    const below = rect.bottom + 4
+    const y =
+      below + height > window.innerHeight ? rect.top - height - 4 : below
+
+    setMenu({ file, x, y: Math.max(8, y) })
+  }
 
   const filteredFiles = files.filter((f) =>
     f.name.toLowerCase().includes(search.toLowerCase()),
@@ -100,21 +233,68 @@ function MainPage() {
 
       // Atualiza a listagem
       const filesResponse = await fetch(
-        `${API}/api/files?path=${encodeURIComponent(selectedDir)}`
+        `${API}/api/files?path=${encodeURIComponent(selectedDir)}`,
       )
 
       const updatedFiles = await filesResponse.json()
 
       setFiles(updatedFiles)
-
     } catch (error) {
       console.error(error)
 
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Erro ao adicionar HQ."
+      alert(error instanceof Error ? error.message : "Erro ao adicionar HQ.")
+    }
+  }
+
+  async function deleteComic(file: FileItem) {
+    const confirmed = window.confirm(
+      `Excluir "${file.name}"? Essa ação não pode ser desfeita.`,
+    )
+
+    if (!confirmed) return
+
+    try {
+      const response = await fetch(
+        `${API}/api/files?path=${encodeURIComponent(file.path)}`,
+        { method: "DELETE" },
       )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao excluir HQ.")
+      }
+
+      setFiles((prev) => prev.filter((f) => f.path !== file.path))
+    } catch (error) {
+      console.error(error)
+
+      alert(error instanceof Error ? error.message : "Erro ao excluir HQ.")
+    }
+  }
+
+  async function moveComic(file: FileItem, destination: string) {
+    setMoving(null)
+
+    try {
+      const response = await fetch(`${API}/api/files/move`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: file.path, destination }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao mover HQ.")
+      }
+
+      // Ela não pertence mais a esta pasta
+      setFiles((prev) => prev.filter((f) => f.path !== file.path))
+    } catch (error) {
+      console.error(error)
+
+      alert(error instanceof Error ? error.message : "Erro ao mover HQ.")
     }
   }
 
@@ -186,7 +366,10 @@ function MainPage() {
         )}
       </div>
 
-      <div className="flex-1 p-3 md:p-4 overflow-y-auto">
+      <div
+        className="flex-1 p-3 md:p-4 overflow-y-auto"
+        onScroll={() => menu && setMenu(null)}
+      >
         {!selectedDir && (
           <p className="text-cv-text-muted text-sm md:text-base">
             Selecione uma pasta na biblioteca.
@@ -222,14 +405,18 @@ function MainPage() {
                 }
               `}
             >
-              {/* Botão de Info - Visível no mobile, e via hover no desktop */}
+              {/* Botão de ações - Visível no mobile, e via hover no desktop
+                  (fica visível enquanto o menu dele estiver aberto) */}
               <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  selectInfo(file)
-                }}
-                className="absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-black/70 text-white text-xs font-bold opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-black active:bg-black/90 shadow-sm"
-                aria-label="Informações do arquivo"
+                onClick={(e) => openMenu(e, file)}
+                className={`absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-black/70 text-white text-xs font-bold transition-opacity flex items-center justify-center hover:bg-black active:bg-black/90 shadow-sm ${
+                  menu?.file.path === file.path
+                    ? "opacity-100"
+                    : "opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                }`}
+                aria-label="Ações do arquivo"
+                aria-haspopup="menu"
+                aria-expanded={menu?.file.path === file.path}
               >
                 ···
               </button>
@@ -276,6 +463,72 @@ function MainPage() {
           )}
         </div>
       </div>
+
+      {/* Menu de ações do arquivo */}
+      {menu && (
+        <>
+          {/* Camada invisível: clicar fora fecha o menu */}
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setMenu(null)}
+            onContextMenu={(e) => {
+              e.preventDefault()
+              setMenu(null)
+            }}
+          />
+          <div
+            role="menu"
+            style={{ top: menu.y, left: menu.x }}
+            className="fixed z-50 w-44 bg-cv-card border border-cv-border rounded-lg shadow-2xl py-1"
+          >
+            <button
+              role="menuitem"
+              onClick={() => {
+                const file = menu.file
+                setMenu(null)
+                selectInfo(file)
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-cv-text hover:bg-[var(--cv-accent-muted)] transition-colors"
+            >
+              <Info size={15} />
+              Informações
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                const file = menu.file
+                setMenu(null)
+                setMoving(file)
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-cv-text hover:bg-[var(--cv-accent-muted)] transition-colors"
+            >
+              <FolderInput size={15} />
+              Mover para...
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => {
+                const file = menu.file
+                setMenu(null)
+                deleteComic(file)
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-red-900/40 hover:text-red-300 transition-colors"
+            >
+              <Trash2 size={15} />
+              Excluir
+            </button>
+          </div>
+        </>
+      )}
+
+      {moving && selectedDir && (
+        <MoveModal
+          file={moving}
+          currentDir={selectedDir}
+          onMove={(destination) => moveComic(moving, destination)}
+          onClose={() => setMoving(null)}
+        />
+      )}
     </div>
   )
 }
