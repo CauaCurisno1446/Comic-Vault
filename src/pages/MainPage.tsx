@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useOutletContext, useNavigate } from "react-router-dom"
 import type { SelectedFile } from "../layout/MainLayout"
 import { isCompleted } from "../hooks/useReadingProgress"
@@ -30,6 +30,7 @@ function MainPage() {
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const filteredFiles = files.filter((f) =>
     f.name.toLowerCase().includes(search.toLowerCase()),
@@ -75,6 +76,48 @@ function MainPage() {
     console.log("All letters have animated!")
   }
 
+  async function addComic(file: File) {
+    if (!selectedDir) return
+
+    const formData = new FormData()
+
+    formData.append("file", file)
+    formData.append("destination", selectedDir)
+
+    try {
+      const response = await fetch(`${API}/api/files`, {
+        method: "POST",
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao enviar HQ.")
+      }
+
+      alert("HQ adicionada com sucesso!")
+
+      // Atualiza a listagem
+      const filesResponse = await fetch(
+        `${API}/api/files?path=${encodeURIComponent(selectedDir)}`
+      )
+
+      const updatedFiles = await filesResponse.json()
+
+      setFiles(updatedFiles)
+
+    } catch (error) {
+      console.error(error)
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Erro ao adicionar HQ."
+      )
+    }
+  }
+
   return (
     <div className="w-full h-full bg-cv-card rounded-lg flex flex-col overflow-hidden">
       <div className="w-full flex items-center gap-2 text-cv-text text-base md:text-lg font-bold p-3 md:p-4 shrink-0 border-b border-cv-border">
@@ -114,10 +157,32 @@ function MainPage() {
         )}
 
         {selectedDir && (
-          <button className="ml-auto flex items-center justify-center rounded-lg cursor-pointer text-cv-text-muted hover:text-cv-text transition-colors text-sm md:text-base font-semibold hover:bg-[var(--cv-accent-muted)] p-2">
-            <Plus size={16} className="inline-block mr-1" />
-            Adicionar Arquivo
-          </button>
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.cbr,.cbz"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+
+                if (file) {
+                  addComic(file)
+                }
+
+                // Permite selecionar o mesmo arquivo novamente
+                e.target.value = ""
+              }}
+            />
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="ml-auto flex items-center justify-center rounded-lg cursor-pointer text-cv-text-muted hover:text-cv-text transition-colors text-sm md:text-base font-semibold hover:bg-[var(--cv-accent-muted)] p-2"
+            >
+              <Plus size={16} className="inline-block mr-1" />
+              Adicionar Arquivo
+            </button>
+          </>
         )}
       </div>
 

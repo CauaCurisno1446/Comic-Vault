@@ -4,10 +4,13 @@ import fs from "fs"
 import path from "path"
 import { generateCover } from "./coverGenerator"
 import { getPage, getPageCount } from "./reader"
+import fileRouter from "./fileRoutes"
 
 const app = express()
 app.use(cors())
 app.use(express.json())
+
+app.use("/api/files", fileRouter)
 
 const comicsDir = path.resolve(process.env.COMICS_DIR || "../Comics")
 
