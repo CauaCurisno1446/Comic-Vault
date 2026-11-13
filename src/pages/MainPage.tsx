@@ -4,6 +4,11 @@ import { motion, AnimatePresence, MotionConfig } from "motion/react"
 import type { SelectedFile } from "../layout/MainLayout"
 import { isCompleted } from "../hooks/useReadingProgress"
 import {
+  usePageCount,
+  setCachedPageCount,
+  forgetPageCount,
+} from "../hooks/usePageCount"
+import {
   FileExclamationPoint,
   Loader,
   Plus,
@@ -11,6 +16,8 @@ import {
   Trash2,
   FolderInput,
   X,
+  LayoutGrid,
+  List,
 } from "lucide-react"
 import SplitText from "../components/SplitText"
 import toast from "react-hot-toast"
@@ -33,13 +40,15 @@ interface FolderItem {
   path: string
 }
 
+type ViewMode = "grid" | "list"
+
 const API = `http://${window.location.hostname}:3001`
+const VIEW_MODE_KEY = "comicvault-view-mode"
 
 // Compara caminhos ignorando "\" x "/" e barras nas pontas
 const normalizePath = (p: string) =>
   p.replace(/\\/g, "/").replace(/^\/|\/$/g, "")
 
-/** Capa com fade-in quando termina de carregar */
 function Cover({ src, alt }: { src: string; alt: string }) {
   const [loaded, setLoaded] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -64,7 +73,26 @@ function Cover({ src, alt }: { src: string; alt: string }) {
   )
 }
 
-/** Modal para escolher a pasta de destino ao mover uma HQ */
+function PageCount({ file }: { file: FileItem }) {
+  const { ref, pages, failed } = usePageCount(file.path, file.type)
+
+  return (
+    <span
+      ref={ref}
+      className="text-cv-text-muted text-[10px] md:text-xs tabular-nums shrink-0"
+      title="Número de páginas"
+    >
+      {pages !== null ? (
+        `${pages} pág${pages !== 1 ? "s" : ""}.`
+      ) : failed ? (
+        "—"
+      ) : (
+        <span className="inline-block w-9 h-3 align-middle rounded bg-cv-card-hover animate-pulse" />
+      )}
+    </span>
+  )
+}
+
 function MoveModal({
   file,
   currentDir,
@@ -164,8 +192,16 @@ function MainPage() {
     x: number
     y: number
   } | null>(null)
+  const [viewMode, setViewMode] = useState<ViewMode>(() =>
+    localStorage.getItem(VIEW_MODE_KEY) === "list" ? "list" : "grid",
+  )
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  function changeViewMode(mode: ViewMode) {
+    setViewMode(mode)
+    localStorage.setItem(VIEW_MODE_KEY, mode)
+  }
 
   // Fecha o menu com Esc ou ao redimensionar a janela
   useEffect(() => {
@@ -182,7 +218,6 @@ function MainPage() {
     }
   }, [menu])
 
-  // Abre o menu junto ao botão "···" (posição fixa, então o overflow do card não corta)
   function openMenu(e: React.MouseEvent<HTMLButtonElement>, file: FileItem) {
     e.stopPropagation()
     const rect = e.currentTarget.getBoundingClientRect()
@@ -210,6 +245,10 @@ function MainPage() {
     )
       .then((r) => r.json())
       .catch(() => ({ pageCount: 0 }))
+
+    // Aproveita para guardar o número de páginas no cache da listagem
+    if (info.pageCount > 0) setCachedPageCount(file.path, info.pageCount)
+
     setSelectedFile({ ...file, pageCount: info.pageCount })
     const params = new URLSearchParams({
       path: file.path,
@@ -217,15 +256,6 @@ function MainPage() {
       title: file.name,
     })
     navigate(`/read?${params.toString()}`)
-  }
-
-  async function selectInfo(file: FileItem) {
-    const info = await fetch(
-      `${API}/api/read/info?path=${encodeURIComponent(file.path)}&type=${file.type}`,
-    )
-      .then((r) => r.json())
-      .catch(() => ({ pageCount: 0 }))
-    setSelectedFile({ ...file, pageCount: info.pageCount })
   }
 
   useEffect(() => {
@@ -261,7 +291,6 @@ function MainPage() {
     formData.append("file", file)
     formData.append("destination", selectedDir)
 
-    // O mesmo toast vai de "enviando" para sucesso/erro (via id)
     const toastId = toast.loading("Enviando HQ...")
 
     try {
@@ -315,6 +344,7 @@ function MainPage() {
         throw new Error(data.error || "Erro ao excluir HQ.")
       }
 
+      forgetPageCount(file.path)
       setFiles((prev) => prev.filter((f) => f.path !== file.path))
       toast.success("HQ excluída com sucesso!")
     } catch (error) {
@@ -343,6 +373,7 @@ function MainPage() {
       }
 
       // Ela não pertence mais a esta pasta
+      forgetPageCount(file.path)
       setFiles((prev) => prev.filter((f) => f.path !== file.path))
       toast.success(`HQ movida para "${destination.split("/").pop()}"`)
     } catch (error) {
@@ -393,7 +424,34 @@ function MainPage() {
           )}
 
           {selectedDir && (
-            <>
+            <div className="ml-auto flex items-center gap-2 shrink-0">
+              {/* Alternar galeria / lista */}
+              <div
+                role="group"
+                aria-label="Modo de visualização"
+                className="flex rounded-lg border border-cv-border overflow-hidden"
+              >
+                {(["grid", "list"] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => changeViewMode(mode)}
+                    aria-pressed={viewMode === mode}
+                    title={mode === "grid" ? "Galeria" : "Lista"}
+                    className={`cursor-pointer p-2 transition-colors ${
+                      viewMode === mode
+                        ? "bg-cv-accent text-white"
+                        : "text-cv-text-muted hover:text-cv-text hover:bg-[var(--cv-accent-muted)]"
+                    }`}
+                  >
+                    {mode === "grid" ? (
+                      <LayoutGrid size={16} />
+                    ) : (
+                      <List size={16} />
+                    )}
+                  </button>
+                ))}
+              </div>
+
               <input
                 ref={fileInputRef}
                 type="file"
@@ -415,16 +473,16 @@ function MainPage() {
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.96 }}
                 onClick={() => fileInputRef.current?.click()}
-                className="ml-auto flex items-center justify-center rounded-lg cursor-pointer text-cv-text-muted hover:text-cv-text transition-colors text-sm md:text-base font-semibold hover:bg-[var(--cv-accent-muted)] p-2"
+                className="flex items-center justify-center rounded-lg cursor-pointer text-cv-text-muted hover:text-cv-text transition-colors text-sm md:text-base font-semibold hover:bg-[var(--cv-accent-muted)] p-2"
               >
                 <Plus size={16} className="inline-block mr-1" />
                 Adicionar Arquivo
               </motion.button>
-            </>
+            </div>
           )}
         </div>
 
-       <div
+        <div
           className="flex-1 min-h-0 min-w-0 p-3 md:p-4 overflow-y-auto"
           onScroll={() => menu && setMenu(null)}
         >
@@ -458,84 +516,161 @@ function MainPage() {
             </motion.div>
           )}
 
-          {/* "relative": necessário para o popLayout posicionar o card que está saindo */}
-          <div className="relative grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4">
+          <div
+            className={
+              viewMode === "grid"
+                ? "relative grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4"
+                : "relative flex flex-col gap-2"
+            }
+          >
             <AnimatePresence mode="popLayout">
-              {filteredFiles.map((file, index) => (
-                <motion.div
-                  key={file.path}
-                  layout
-                  initial={{ opacity: 0, y: 16 }}
-                  // O delay fica dentro do animate para valer só na entrada
-                  // (senão atrasaria também o hover)
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                    transition: {
-                      duration: 0.25,
-                      delay: Math.min(index, 12) * 0.03,
-                    },
-                  }}
-                  exit={{ opacity: 0, scale: 0.85 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{
-                    layout: { type: "spring", duration: 0.4, bounce: 0.1 },
-                  }}
-                  className={`
-                    rounded-lg overflow-hidden flex flex-col cursor-pointer transition-colors relative group border shadow-xl
-                    ${
-                      isCompleted(file.path)
-                        ? "bg-green-900/40 border-green-700/60 hover:bg-green-900/60"
-                        : "bg-cv-card border-cv-border hover:bg-cv-card-hover"
-                    }
-                  `}
-                >
-                  {/* Botão de ações - Visível no mobile, e via hover no desktop
-                      (fica visível enquanto o menu dele estiver aberto) */}
-                  <button
-                    onClick={(e) => openMenu(e, file)}
-                    className={`absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-black/70 text-white text-xs font-bold transition-opacity flex items-center justify-center hover:bg-black active:bg-black/90 shadow-sm ${
-                      menu?.file.path === file.path
-                        ? "opacity-100"
-                        : "opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
-                    }`}
-                    aria-label="Ações do arquivo"
-                    aria-haspopup="menu"
-                    aria-expanded={menu?.file.path === file.path}
-                  >
-                    ···
-                  </button>
+              {filteredFiles.map((file, index) => {
+                const completed = isCompleted(file.path)
 
-                  {isCompleted(file.path) && (
-                    <div className="absolute top-2 left-2 z-10 bg-green-600 rounded-full w-5 h-5 flex items-center justify-center">
-                      <span className="text-white text-xs">✓</span>
+                if (viewMode === "list") {
+                  return (
+                    <motion.div
+                      key={file.path}
+                      layout
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{
+                        opacity: 1,
+                        y: 0,
+                        transition: {
+                          duration: 0.2,
+                          delay: Math.min(index, 12) * 0.02,
+                        },
+                      }}
+                      exit={{ opacity: 0, scale: 0.97 }}
+                      whileTap={{ scale: 0.99 }}
+                      transition={{
+                        layout: { type: "spring", duration: 0.4, bounce: 0.1 },
+                      }}
+                      onClick={() => openReader(file)}
+                      className={`
+                        flex items-center gap-3 p-2 pr-3 rounded-lg cursor-pointer transition-colors border
+                        ${
+                          completed
+                            ? "bg-green-900/40 border-green-700/60 hover:bg-green-900/60"
+                            : "bg-cv-card border-cv-border hover:bg-cv-card-hover"
+                        }
+                      `}
+                    >
+                      <div className="w-10 aspect-[2/3] shrink-0 rounded overflow-hidden bg-cv-card-hover">
+                        <Cover
+                          src={`${API}/api/cover?path=${encodeURIComponent(file.path)}&type=${file.type}`}
+                          alt={file.name}
+                        />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="text-cv-text text-sm font-medium truncate">
+                          {file.name}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-cv-text-muted text-[10px] md:text-xs uppercase bg-[var(--cv-accent-muted)] px-1.5 py-0.5 rounded">
+                            {file.type}
+                          </span>
+                          <PageCount file={file} />
+                        </div>
+                      </div>
+
+                      {completed && (
+                        <div className="bg-green-600 rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                          <span className="text-white text-xs">✓</span>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={(e) => openMenu(e, file)}
+                        className="shrink-0 w-8 h-8 rounded-full bg-black/70 text-white text-xs font-bold flex items-center justify-center hover:bg-black active:bg-black/90 transition-colors cursor-pointer"
+                        aria-label="Ações do arquivo"
+                        aria-haspopup="menu"
+                        aria-expanded={menu?.file.path === file.path}
+                      >
+                        ···
+                      </button>
+                    </motion.div>
+                  )
+                }
+
+                return (
+                  <motion.div
+                    key={file.path}
+                    layout
+                    initial={{ opacity: 0, y: 16 }}
+                    // O delay fica dentro do animate para valer só na entrada
+                    // (senão atrasaria também o hover)
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                      transition: {
+                        duration: 0.25,
+                        delay: Math.min(index, 12) * 0.03,
+                      },
+                    }}
+                    exit={{ opacity: 0, scale: 0.85 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{
+                      layout: { type: "spring", duration: 0.4, bounce: 0.1 },
+                    }}
+                    className={`
+                      rounded-lg overflow-hidden flex flex-col cursor-pointer transition-colors relative group border shadow-xl
+                      ${
+                        completed
+                          ? "bg-green-900/40 border-green-700/60 hover:bg-green-900/60"
+                          : "bg-cv-card border-cv-border hover:bg-cv-card-hover"
+                      }
+                    `}
+                  >
+                    <button
+                      onClick={(e) => openMenu(e, file)}
+                      className={`absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-black/70 text-white text-xs font-bold transition-opacity flex items-center justify-center hover:bg-black active:bg-black/90 shadow-sm ${
+                        menu?.file.path === file.path
+                          ? "opacity-100"
+                          : "opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+                      }`}
+                      aria-label="Ações do arquivo"
+                      aria-haspopup="menu"
+                      aria-expanded={menu?.file.path === file.path}
+                    >
+                      ···
+                    </button>
+
+                    {completed && (
+                      <div className="absolute top-2 left-2 z-10 bg-green-600 rounded-full w-5 h-5 flex items-center justify-center">
+                        <span className="text-white text-xs">✓</span>
+                      </div>
+                    )}
+
+                    <div
+                      onClick={() => openReader(file)}
+                      className="w-full aspect-[2/3] bg-cv-card-hover overflow-hidden"
+                    >
+                      <Cover
+                        src={`${API}/api/cover?path=${encodeURIComponent(file.path)}&type=${file.type}`}
+                        alt={file.name}
+                      />
                     </div>
-                  )}
 
-                  <div
-                    onClick={() => openReader(file)}
-                    className="w-full aspect-[2/3] bg-cv-card-hover overflow-hidden"
-                  >
-                    <Cover
-                      src={`${API}/api/cover?path=${encodeURIComponent(file.path)}&type=${file.type}`}
-                      alt={file.name}
-                    />
-                  </div>
-
-                  <div
-                    onClick={() => openReader(file)}
-                    className="p-2 flex flex-col justify-between flex-1"
-                  >
-                    <span className="text-cv-text text-xs md:text-sm font-medium line-clamp-2 leading-tight">
-                      {file.name}
-                    </span>
-                    <span className="text-cv-text-muted text-[10px] md:text-xs uppercase mt-1 self-start bg-[var(--cv-accent-muted)] px-1.5 py-0.5 rounded">
-                      {file.type}
-                    </span>
-                  </div>
-                </motion.div>
-              ))}
+                    <div
+                      onClick={() => openReader(file)}
+                      className="p-2 flex flex-col justify-between flex-1"
+                    >
+                      <span className="text-cv-text text-xs md:text-sm font-medium line-clamp-2 leading-tight">
+                        {file.name}
+                      </span>
+                      <div className="mt-1 flex items-center justify-between gap-1">
+                        <span className="text-cv-text-muted text-[10px] md:text-xs uppercase bg-[var(--cv-accent-muted)] px-1.5 py-0.5 rounded">
+                          {file.type}
+                        </span>
+                        <PageCount file={file} />
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              })}
             </AnimatePresence>
 
             {search && filteredFiles.length === 0 && (
@@ -573,18 +708,6 @@ function MainPage() {
               transition={{ duration: 0.12 }}
               className="fixed z-50 w-44 bg-cv-card border border-cv-border rounded-lg shadow-2xl py-1"
             >
-              {/* <button
-                role="menuitem"
-                onClick={() => {
-                  const file = menu.file
-                  setMenu(null)
-                  selectInfo(file)
-                }}
-                className="cursor-pointer w-full flex items-center gap-2 px-3 py-2 text-sm text-cv-text hover:bg-[var(--cv-accent-muted)] transition-colors"
-              >
-                <Info size={15} />
-                Informações
-              </button> */}
               <button
                 role="menuitem"
                 onClick={() => {
