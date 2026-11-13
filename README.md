@@ -5,7 +5,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/React-TypeScript-3178c6?logo=react&logoColor=white" alt="React e TypeScript">
   <img src="https://img.shields.io/badge/Node.js-Express-339933?logo=nodedotjs&logoColor=white" alt="Node.js e Express">
-  <img src="https://img.shields.io/badge/SQLite-Prisma-2d3748?logo=prisma&logoColor=white" alt="SQLite e Prisma">
   <img src="https://img.shields.io/badge/self--hosted-sim-7c5cff" alt="Self-hosted">
   <img src="https://img.shields.io/badge/licen%C3%A7a-MIT-2ea043" alt="Licença">
 </p>
