@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/comicvault-logo.svg" width="560" alt="ComicVault: seu acervo de HQs, em casa">
+  <img src="./src/static/img/logo-light.png" width="560" alt="ComicVault: seu acervo de HQs, em casa">
 </p>
 
 <p align="center">
@@ -24,7 +24,6 @@ nuvem de terceiros.
 $ npm run dev
   Backend rodando em http://0.0.0.0:3001
   ComicVault pronto em http://localhost:5173
-  › biblioteca: E:/HQ'S · 1.248 arquivos
 ```
 
 <!--
@@ -41,8 +40,6 @@ $ npm run dev
 - [Como funciona](#como-funciona)
 - [Configuração](#configuração)
 - [Estrutura do projeto](#estrutura-do-projeto)
-- [Roadmap](#roadmap)
-- [Contribuindo](#contribuindo)
 - [Licença](#licença)
 
 ## O que ele faz
@@ -84,30 +81,24 @@ Você precisa do [Node.js](https://nodejs.org) 20 ou mais novo e de uma pasta co
 suas HQs. Docker é opcional.
 
 ```bash
-git clone https://github.com/SEU-USUARIO/comicvault
+git clone https://github.com/CauaCurisno1446/Comic-Vault
 cd comicvault
 ```
 
 **Backend**
 
 ```bash
-cd backend            # ajuste para o nome da pasta do seu backend
+cd server
 npm install
-npx prisma migrate deploy
-npm run dev           # sobe em http://0.0.0.0:3001
+npm run dev
 ```
 
 **Frontend**
 
 ```bash
-cd frontend           # ajuste para o nome da pasta do seu frontend
 npm install
 npm run dev           # abre em http://localhost:5173
 ```
-
-Abra o endereço do frontend, entre em **Configurações → Biblioteca**, informe o
-caminho da pasta das suas HQs (por exemplo `E:/HQ'S`) e clique no botão da
-pasta. A página recarrega já lendo a nova biblioteca.
 
 **Pelo celular ou outro computador:** o frontend fala com o backend usando o
 mesmo endereço da página na porta `3001`. Abra `http://IP-DO-SERVIDOR:5173` e
@@ -202,39 +193,8 @@ comicvault/
         └── hooks/       useSettings, useReadingProgress, useHistory
 ```
 
-> Ajuste os nomes das pastas e dos arquivos para o que está no seu repositório.
-
 **Tecnologias:** React, TypeScript, Vite, Tailwind CSS, React Router, Motion,
 Lucide, react-pageflip, react-hot-toast, Node.js, Express, Prisma e SQLite.
-
-## Roadmap
-
-- [x] Leitor com efeito de virar página, página dupla e zoom
-- [x] Modo rolagem contínua
-- [x] Progresso de leitura e "Continuar de onde parei"
-- [x] Histórico de lidos recentemente, com limpeza automática de arquivos apagados
-- [x] Sistema de temas
-- [x] Menu lateral único (início, biblioteca, lidos recentemente, configurações)
-- [ ] **Adicionar HQs pelo site**: escolher o arquivo no computador e copiá-lo para
-      a pasta selecionada dentro do diretório do projeto
-- [ ] **Excluir HQs** pelo site
-- [ ] **Mover HQs** entre pastas pelo site
-- [ ] Botão para alternar entre virar página e rolagem direto na barra do leitor
-- [ ] Rolagem automática com velocidade ajustável
-
-Tem uma ideia? Abra uma [issue](https://github.com/SEU-USUARIO/comicvault/issues).
-
-## Contribuindo
-
-Contribuições são bem-vindas, de um relato de bug a um tema novo:
-
-1. faça um fork e crie uma branch (`git checkout -b minha-melhoria`);
-2. rode o backend e o frontend localmente;
-3. descreva o que mudou e, se for visual, anexe um print;
-4. abra o pull request.
-
-Ao reportar um bug, ajuda muito informar o navegador, o sistema do servidor, o
-formato do arquivo e o que aparece no terminal do backend.
 
 ## Licença
 
