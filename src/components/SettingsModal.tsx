@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { X, FolderOpen } from "lucide-react"
+import { X, FolderOpen, BookBookmark, Palette, SlidersHorizontal } from "lucide-react"
 import type { Settings } from "../hooks/useSettings"
 import toast from "react-hot-toast"
 import { motion } from "motion/react"
@@ -57,8 +57,6 @@ const THEMES = [
   { id: "sepia", label: "Sepia" },
 ]
 
-// Todos os avisos de configuração usam o mesmo id: se o usuário mexer em
-// várias opções seguidas, o toast é substituído em vez de empilhar.
 const SETTING_TOAST_ID = "setting"
 
 export function SettingsModal({
@@ -117,6 +115,7 @@ export function SettingsModal({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-cv-border sticky top-0 bg-cv-card">
+          <SlidersHorizontal size={20} />
           <h2 className="text-cv-text font-semibold text-base">
             Configurações
           </h2>
@@ -130,7 +129,8 @@ export function SettingsModal({
 
         <div className="px-6 py-2">
           {/* Leitor */}
-          <p className="text-cv-text-subtle text-xs uppercase tracking-widest mt-4 mb-1">
+          <p className="text-cv-text-subtle text-xs uppercase tracking-widest mt-4 mb-1 flex flex-row gap-2">
+            <BookBookmark size={16} />
             Leitor
           </p>
 
@@ -157,7 +157,7 @@ export function SettingsModal({
               })
             }}
           />
-          
+
           <Toggle
             label="Salvar progresso"
             description="Lembra a última página lida ao reabrir um arquivo"
@@ -172,7 +172,8 @@ export function SettingsModal({
           />
 
           {/* Tema */}
-          <p className="text-cv-text-subtle text-xs uppercase tracking-widest mt-6 mb-3">
+          <p className="text-cv-text-subtle text-xs uppercase tracking-widest mt-6 mb-3 flex flex-row gap-2">
+            <Palette size={16} />
             Tema
           </p>
           <div className="grid grid-cols-2 gap-2 pb-2">
@@ -198,29 +199,6 @@ export function SettingsModal({
               </button>
             ))}
           </div>
-
-          {/* Diretório raiz */}
-          {showDirConfig && (
-            <>
-              <p className="text-cv-text-subtle text-xs uppercase tracking-widest mt-6 mb-3">
-                Biblioteca
-              </p>
-              <div className="flex gap-2 pb-4">
-                <input
-                  value={libraryPath}
-                  onChange={(e) => setLibraryPath(e.target.value)}
-                  placeholder="Ex: E:/HQ'S"
-                  className="flex-1 bg-cv-card-hover text-cv-text text-sm px-3 py-2 rounded-lg border border-cv-border focus:outline-none focus:border-cv-accent"
-                />
-                <button
-                  onClick={saveLibraryPath}
-                  className="bg-cv-accent text-white px-3 py-2 rounded-lg hover:bg-cv-accent-h transition-colors shrink-0"
-                >
-                  <FolderOpen size={16} />
-                </button>
-              </div>
-            </>
-          )}
         </div>
 
         {/* Footer */}
