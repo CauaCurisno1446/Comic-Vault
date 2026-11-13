@@ -410,7 +410,7 @@ function MainPage() {
   return (
     // reducedMotion="user": respeita quem desativou animações no sistema
     <MotionConfig reducedMotion="user">
-      <div className="w-full h-full min-h-0 bg-cv-card rounded-lg flex flex-col overflow-hidden">
+      <div className="w-full h-full bg-cv-card rounded-lg flex flex-col overflow-hidden">
         <div className="w-full flex items-center gap-2 text-cv-text text-base md:text-lg font-bold p-3 md:p-4 shrink-0 border-b border-cv-border">
           <span
             className="truncate text-cv-accent text-xl"
@@ -507,7 +507,7 @@ function MainPage() {
         </div>
 
         <div
-          className="cv-scroll flex-1 min-h-0 min-w-0 p-3 md:p-4 overflow-y-auto overscroll-contain"
+          className="flex-1 min-h-0 min-w-0 p-3 md:p-4 overflow-y-auto"
           onScroll={() => menu && setMenu(null)}
         >
           {!selectedDir && (
@@ -560,6 +560,7 @@ function MainPage() {
             )}
           </AnimatePresence>
 
+          {/* "relative": necessário para o popLayout posicionar o item que está saindo */}
           <div
             className={
               viewMode === "grid"
@@ -754,6 +755,18 @@ function MainPage() {
               transition={{ duration: 0.12 }}
               className="fixed z-50 w-44 bg-cv-card border border-cv-border rounded-lg shadow-2xl py-1"
             >
+              {/* <button
+                role="menuitem"
+                onClick={() => {
+                  const file = menu.file
+                  setMenu(null)
+                  selectInfo(file)
+                }}
+                className="cursor-pointer w-full flex items-center gap-2 px-3 py-2 text-sm text-cv-text hover:bg-[var(--cv-accent-muted)] transition-colors"
+              >
+                <Info size={15} />
+                Informações
+              </button> */}
               <button
                 role="menuitem"
                 onClick={() => {
