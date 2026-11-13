@@ -3,6 +3,8 @@ import { useOutletContext, useNavigate } from "react-router-dom"
 import { motion, AnimatePresence, MotionConfig } from "motion/react"
 import type { SelectedFile } from "../layout/MainLayout"
 import { isCompleted } from "../hooks/useReadingProgress"
+import { useSettings } from "../hooks/useSettings"
+import PanoramaGallery from "../components/PanoramaGallery"
 import {
   usePageCount,
   setCachedPageCount,
@@ -49,6 +51,7 @@ const VIEW_MODE_KEY = "comicvault-view-mode"
 const normalizePath = (p: string) =>
   p.replace(/\\/g, "/").replace(/^\/|\/$/g, "")
 
+/** Capa com fade-in quando termina de carregar */
 function Cover({ src, alt }: { src: string; alt: string }) {
   const [loaded, setLoaded] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -73,6 +76,7 @@ function Cover({ src, alt }: { src: string; alt: string }) {
   )
 }
 
+/** Número de páginas: só é buscado quando o item aparece na tela */
 function PageCount({ file }: { file: FileItem }) {
   const { ref, pages, failed } = usePageCount(file.path, file.type)
 
@@ -93,6 +97,7 @@ function PageCount({ file }: { file: FileItem }) {
   )
 }
 
+/** Modal para escolher a pasta de destino ao mover uma HQ */
 function MoveModal({
   file,
   currentDir,
@@ -184,6 +189,7 @@ function MoveModal({
 function MainPage() {
   const { selectedDir, setSelectedFile, search } =
     useOutletContext<OutletContext>()
+  const { settings } = useSettings()
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(false)
   const [moving, setMoving] = useState<FileItem | null>(null)
@@ -218,6 +224,7 @@ function MainPage() {
     }
   }, [menu])
 
+  // Abre o menu junto ao botão "···" (posição fixa, então o overflow do card não corta)
   function openMenu(e: React.MouseEvent<HTMLButtonElement>, file: FileItem) {
     e.stopPropagation()
     const rect = e.currentTarget.getBoundingClientRect()
@@ -239,6 +246,13 @@ function MainPage() {
     f.name.toLowerCase().includes(search.toLowerCase()),
   )
 
+  // A galeria panorâmica só existe no modo lista, e só se a opção estiver ligada
+  const showPanorama =
+    viewMode === "list" &&
+    settings.showPanorama &&
+    !loading &&
+    filteredFiles.length > 0
+
   async function openReader(file: FileItem) {
     const info = await fetch(
       `${API}/api/read/info?path=${encodeURIComponent(file.path)}&type=${file.type}`,
@@ -256,6 +270,15 @@ function MainPage() {
       title: file.name,
     })
     navigate(`/read?${params.toString()}`)
+  }
+
+  async function selectInfo(file: FileItem) {
+    const info = await fetch(
+      `${API}/api/read/info?path=${encodeURIComponent(file.path)}&type=${file.type}`,
+    )
+      .then((r) => r.json())
+      .catch(() => ({ pageCount: 0 }))
+    setSelectedFile({ ...file, pageCount: info.pageCount })
   }
 
   useEffect(() => {
@@ -291,6 +314,7 @@ function MainPage() {
     formData.append("file", file)
     formData.append("destination", selectedDir)
 
+    // O mesmo toast vai de "enviando" para sucesso/erro (via id)
     const toastId = toast.loading("Enviando HQ...")
 
     try {
@@ -386,7 +410,7 @@ function MainPage() {
   return (
     // reducedMotion="user": respeita quem desativou animações no sistema
     <MotionConfig reducedMotion="user">
-      <div className="w-full h-full bg-cv-card rounded-lg flex flex-col overflow-hidden">
+      <div className="w-full h-full min-h-0 bg-cv-card rounded-lg flex flex-col overflow-hidden">
         <div className="w-full flex items-center gap-2 text-cv-text text-base md:text-lg font-bold p-3 md:p-4 shrink-0 border-b border-cv-border">
           <span
             className="truncate text-cv-accent text-xl"
@@ -483,7 +507,7 @@ function MainPage() {
         </div>
 
         <div
-          className="flex-1 min-h-0 min-w-0 p-3 md:p-4 overflow-y-auto"
+          className="cv-scroll flex-1 min-h-0 min-w-0 p-3 md:p-4 overflow-y-auto overscroll-contain"
           onScroll={() => menu && setMenu(null)}
         >
           {!selectedDir && (
@@ -515,6 +539,26 @@ function MainPage() {
               </p>
             </motion.div>
           )}
+
+          {/* Galeria panorâmica: só no modo lista (entra e sai com animação) */}
+          <AnimatePresence initial={false}>
+            {showPanorama && (
+              <motion.div
+                key="panorama"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="overflow-hidden"
+              >
+                <PanoramaGallery
+                  files={filteredFiles}
+                  api={API}
+                  onOpen={openReader}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div
             className={
@@ -624,6 +668,8 @@ function MainPage() {
                       }
                     `}
                   >
+                    {/* Botão de ações - Visível no mobile, e via hover no desktop
+                        (fica visível enquanto o menu dele estiver aberto) */}
                     <button
                       onClick={(e) => openMenu(e, file)}
                       className={`absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-black/70 text-white text-xs font-bold transition-opacity flex items-center justify-center hover:bg-black active:bg-black/90 shadow-sm ${

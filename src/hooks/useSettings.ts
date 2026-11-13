@@ -5,6 +5,8 @@ export interface Settings {
   zoom: number
   saveProgress: boolean
   theme: string
+  scrollMode: boolean
+  showPanorama: boolean
 }
 
 const DEFAULTS: Settings = {
@@ -12,6 +14,8 @@ const DEFAULTS: Settings = {
   zoom: 1,
   saveProgress: true,
   theme: "midnight",
+  scrollMode: false,
+  showPanorama: true,
 }
 
 const KEY = "comicvault-settings"

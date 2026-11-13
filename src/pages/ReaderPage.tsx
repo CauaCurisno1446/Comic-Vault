@@ -235,40 +235,40 @@ function ReaderPage() {
     }
   }, [])
 
- // Busca total de páginas + progresso salvo
-useEffect(() => {
-  if (!filePath) return
+  // Busca total de páginas + progresso salvo
+  useEffect(() => {
+    if (!filePath) return
 
-  fetch(
-    `${API}/api/read/info?path=${encodeURIComponent(filePath)}&type=${fileType}`,
-  )
-    .then((r) => {
-      if (r.status === 404) {
-        removeFromHistory(filePath)
-        toast.error("Esse arquivo não existe mais.")
-        navigate(-1)
-        throw new Error("not found")
-      }
-      if (!r.ok) throw new Error("info failed")
-      return r.json()
-    })
-    .then((data) => {
-      setPageCount(data.pageCount)
-      setLoading(false)
-
-      if (settings.saveProgress) {
-        const saved = loadProgress(filePath)
-        if (saved && saved > 1 && saved < data.pageCount) {
-          setResumePrompt(saved)
+    fetch(
+      `${API}/api/read/info?path=${encodeURIComponent(filePath)}&type=${fileType}`,
+    )
+      .then((r) => {
+        if (r.status === 404) {
+          removeFromHistory(filePath)
+          toast.error("Esse arquivo não existe mais.")
+          navigate(-1)
+          throw new Error("not found")
         }
-      }
-    })
-   .catch((err) => {
-      if (err.message === "not found") return // já tratado acima
-      toast.error("Não foi possível abrir o arquivo.", { id: "open-error" })
-      setLoading(false)
-    })
-}, [filePath, fileType])
+        if (!r.ok) throw new Error("info failed")
+        return r.json()
+      })
+      .then((data) => {
+        setPageCount(data.pageCount)
+        setLoading(false)
+
+        if (settings.saveProgress) {
+          const saved = loadProgress(filePath)
+          if (saved && saved > 1 && saved < data.pageCount) {
+            setResumePrompt(saved)
+          }
+        }
+      })
+      .catch((err) => {
+        if (err.message === "not found") return // já tratado acima
+        toast.error("Não foi possível abrir o arquivo.", { id: "open-error" })
+        setLoading(false)
+      })
+  }, [filePath, fileType])
 
   // Salva progresso ao trocar página
   useEffect(() => {

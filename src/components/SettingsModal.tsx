@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from "react"
-import { X, FolderOpen, BookBookmark, Palette, SlidersHorizontal } from "lucide-react"
+import {
+  X,
+  FolderOpen,
+  BookBookmark,
+  Palette,
+  SlidersHorizontal,
+} from "lucide-react"
 import type { Settings } from "../hooks/useSettings"
 import toast from "react-hot-toast"
 import { motion } from "motion/react"
@@ -199,6 +205,27 @@ export function SettingsModal({
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Biblioteca */}
+        <div className="px-6 py-2">
+          <p className="text-cv-text-subtle text-xs uppercase tracking-widest mt-6 mb-1 flex flex-row gap-2">
+            <FolderOpen size={16} />
+            Biblioteca
+          </p>
+
+          <Toggle
+            label="Galeria panorâmica (SOMENTE EM LISTA)"
+            description="Exibe uma galeria 3D de capas acima dos arquivos"
+            value={settings.showPanorama}
+            onChange={(v) => {
+              onUpdate("showPanorama", v)
+              toast.success(
+                `Galeria panorâmica ${v ? "ativada" : "desativada"}`,
+                { id: SETTING_TOAST_ID },
+              )
+            }}
+          />
         </div>
 
         {/* Footer */}
