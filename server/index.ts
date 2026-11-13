@@ -331,6 +331,17 @@ app.get("/api/read/page", async (req, res) => {
   }
 })
 
+app.post("/api/read/exists", express.json(), (req, res) => {
+  const paths: unknown[] = Array.isArray(req.body?.paths) ? req.body.paths : []
+
+  const result: Record<string, boolean> = {}
+  for (const p of paths) {
+    if (typeof p === "string") result[p] = fs.existsSync(p)
+  }
+
+  res.json(result)
+})
+
 // Serve a pasta de capas como estático também (opcional)
 app.use("/covers", express.static(path.join(process.cwd(), ".covers")))
 
