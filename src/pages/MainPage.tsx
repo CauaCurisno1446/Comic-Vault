@@ -424,8 +424,8 @@ function MainPage() {
           )}
         </div>
 
-        <div
-          className="flex-1 p-3 md:p-4 overflow-y-auto"
+       <div
+          className="flex-1 min-h-0 min-w-0 p-3 md:p-4 overflow-y-auto"
           onScroll={() => menu && setMenu(null)}
         >
           {!selectedDir && (

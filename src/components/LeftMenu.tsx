@@ -173,6 +173,14 @@ function LeftMenu({
     }
   }
 
+  useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+          if (e.key === "Enter") criarPasta()
+        }
+        window.addEventListener("keydown", handler)
+        return () => window.removeEventListener("keydown", handler)
+      }, [criarPasta])
+
   async function editarPasta() {
     if (!selecionada || !nomeEditar.trim()) return
 
@@ -221,6 +229,14 @@ function LeftMenu({
     }
   }
 
+  useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+          if (e.key === "Enter") editarPasta()
+        }
+        window.addEventListener("keydown", handler)
+        return () => window.removeEventListener("keydown", handler)
+      }, [editarPasta])
+
   async function excluirPasta() {
     if (!selecionada) return
 
@@ -267,7 +283,7 @@ function LeftMenu({
   return (
     // reducedMotion="user": respeita quem desativou animações no sistema
     <MotionConfig reducedMotion="user">
-      <div className="w-full lg:min-h-screen lg:w-1/4 xl:w-1/5 flex flex-col lg:items-center gap-3 lg:gap-4 p-2 lg:p-4">
+      <div className="w-full lg:h-screen lg:w-1/4 xl:w-1/5 flex flex-col lg:items-center gap-3 lg:gap-4 p-2 lg:p-4 overflow-hidden">
         {/* AnimatePresence permite animar a SAÍDA dos modais.
             Para o fade/scale aparecer, o elemento raiz do Modal.tsx precisa ser
             um motion.div (veja a explicação junto com este arquivo). */}
@@ -425,7 +441,7 @@ function LeftMenu({
           </div>
 
           {/* Lista de pastas */}
-          <div className="flex flex-row lg:flex-col gap-2 px-3 pt-3 pb-3 lg:pb-4 overflow-x-auto lg:overflow-y-auto lg:flex-1">
+          <div className="flex flex-row lg:flex-col gap-2 px-3 pt-3 pb-3 lg:pb-4 overflow-x-auto lg:overflow-y-auto lg:flex-1 lg:min-h-0">
             {loading && (
               <p className="text-cv-text-muted text-sm px-2 animate-pulse">
                 Carregando...

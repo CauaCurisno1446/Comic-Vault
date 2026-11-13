@@ -145,6 +145,19 @@ export function SettingsModal({
               })
             }}
           />
+
+          <Toggle
+            label="Modo rolagem"
+            description="Rola as páginas na vertical, sem efeito de virar"
+            value={settings.scrollMode}
+            onChange={(v) => {
+              onUpdate("scrollMode", v)
+              toast.success(`Modo rolagem ${v ? "ativado" : "desativado"}`, {
+                id: SETTING_TOAST_ID,
+              })
+            }}
+          />
+          
           <Toggle
             label="Salvar progresso"
             description="Lembra a última página lida ao reabrir um arquivo"

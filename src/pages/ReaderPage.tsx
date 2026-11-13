@@ -1,4 +1,11 @@
-import { forwardRef, useEffect, useState, useCallback, useRef } from "react"
+import {
+  forwardRef,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  type RefObject,
+} from "react"
 import { useSearchParams, useNavigate } from "react-router-dom"
 import HTMLFlipBook from "react-pageflip"
 import { motion, AnimatePresence } from "motion/react"
@@ -19,6 +26,7 @@ const API = `http://${window.location.hostname}:3001`
 const PREFETCH = 3
 const PAGE_RATIO = 0.66 // proporção típica de quadrinho (largura / altura)
 const TOP_BAR_AND_PROGRESS = 48
+const SCROLL_MAX_WIDTH = 800 // largura máxima da coluna no modo rolagem (zoom 100%)
 
 // Os tipos da lib exigem muitas props; este cast evita o ruído
 const Book = HTMLFlipBook as any
@@ -27,7 +35,6 @@ function pageUrl(filePath: string, fileType: string, page: number) {
   return `${API}/api/read/page?path=${encodeURIComponent(filePath)}&type=${fileType}&page=${page}`
 }
 
-// A lib exige forwardRef nas páginas
 const FlipPage = forwardRef<HTMLDivElement, { src?: string; n: number }>(
   ({ src, n }, ref) => (
     <div ref={ref} className="bg-black">
@@ -43,6 +50,103 @@ const FlipPage = forwardRef<HTMLDivElement, { src?: string; n: number }>(
   ),
 )
 FlipPage.displayName = "FlipPage"
+
+function ScrollPage({ n, src }: { n: number; src?: string }) {
+  const [ratio, setRatio] = useState(PAGE_RATIO)
+
+  return (
+    <div
+      id={`page-${n}`}
+      data-page={n}
+      className="w-full bg-black"
+      style={{ aspectRatio: String(ratio) }}
+    >
+      {src && (
+        <img
+          src={src}
+          alt={`Página ${n}`}
+          draggable={false}
+          onLoad={(e) => {
+            const img = e.currentTarget
+            if (img.naturalWidth && img.naturalHeight) {
+              setRatio(img.naturalWidth / img.naturalHeight)
+            }
+          }}
+          className="w-full h-full block object-contain"
+        />
+      )}
+    </div>
+  )
+}
+
+function ScrollView({
+  filePath,
+  fileType,
+  pageCount,
+  startPage,
+  zoom,
+  currentPage,
+  onPageChange,
+  scrollRef,
+}: {
+  filePath: string
+  fileType: string
+  pageCount: number
+  startPage: number
+  zoom: number
+  currentPage: number
+  onPageChange: (n: number) => void
+  scrollRef: RefObject<HTMLDivElement | null>
+}) {
+  // Vai para a página inicial ao montar
+  useEffect(() => {
+    document.getElementById(`page-${startPage}`)?.scrollIntoView()
+  }, [])
+
+  // Detecta qual página cruza o meio da tela
+  useEffect(() => {
+    const root = scrollRef.current
+    if (!root) return
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            onPageChange(Number((e.target as HTMLElement).dataset.page))
+          }
+        }
+      },
+      { root, rootMargin: "-50% 0px -50% 0px" },
+    )
+
+    root.querySelectorAll("[data-page]").forEach((el) => obs.observe(el))
+    return () => obs.disconnect()
+  }, [pageCount, onPageChange, scrollRef])
+
+  return (
+    <div ref={scrollRef} className="absolute inset-0 overflow-auto">
+      <div
+        className="mx-auto"
+        style={{
+          width: `${zoom * 100}%`,
+          maxWidth: `${zoom * SCROLL_MAX_WIDTH}px`,
+        }}
+      >
+        {Array.from({ length: pageCount }, (_, i) => (
+          <ScrollPage
+            key={i}
+            n={i + 1}
+            src={
+              Math.abs(i + 1 - currentPage) <= PREFETCH + 1
+                ? pageUrl(filePath, fileType, i + 1)
+                : undefined
+            }
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
 
 function ReaderPage() {
   const [params] = useSearchParams()
@@ -64,9 +168,12 @@ function ReaderPage() {
   const [panY, setPanY] = useState(0)
 
   const bookRef = useRef<any>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef({ active: false, x: 0, y: 0, panX: 0, panY: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [touching, setTouching] = useState(false)
+
+  const scrollMode = settings.scrollMode
 
   // Durante um gesto (arrastar/pinça) a página tem que seguir o dedo/mouse
   // sem atraso; fora disso (botões, teclado) o zoom e o pan são suavizados.
@@ -160,16 +267,28 @@ function ReaderPage() {
     })
   }, [currentPage, filePath, pageCount, settings.saveProgress])
 
-  // A lib decide quantas páginas viram pelo layout, então não há "step"
-  // Com zoom, só é possível navegar (arrastar) a página; virar só em 100%
+  // No modo flip, a lib decide quantas páginas viram pelo layout (sem "step"),
+  // e com zoom só é possível arrastar a página; virar só em 100%.
+  // No modo rolagem, os botões/teclas rolam ~85% da altura visível.
   const goNext = useCallback(() => {
+    if (scrollMode) {
+      const el = scrollRef.current
+      el?.scrollBy({ top: el.clientHeight * 0.85, behavior: "smooth" })
+      return
+    }
     if (zoom > 1) return
     bookRef.current?.pageFlip().flipNext()
-  }, [zoom])
+  }, [zoom, scrollMode])
+
   const goPrev = useCallback(() => {
+    if (scrollMode) {
+      const el = scrollRef.current
+      el?.scrollBy({ top: -el.clientHeight * 0.85, behavior: "smooth" })
+      return
+    }
     if (zoom > 1) return
     bookRef.current?.pageFlip().flipPrev()
-  }, [zoom])
+  }, [zoom, scrollMode])
 
   // Teclado
   const handleKey = useCallback(
@@ -197,13 +316,16 @@ function ReaderPage() {
     )
   }
 
+  // Pan manual só existe no modo flip; na rolagem o scroll é nativo
+  const panEnabled = !scrollMode && zoom > 1
+
   return (
     <div
-      className={`fixed inset-0 z-50 bg-black flex flex-col select-none touch-none overflow-hidden ${
-        zoom > 1 ? (isDragging ? "cursor-grabbing" : "cursor-grab") : ""
-      }`}
+      className={`fixed inset-0 z-50 bg-black flex flex-col select-none overflow-hidden ${
+        scrollMode ? "touch-pan-x touch-pan-y" : "touch-none"
+      } ${panEnabled ? (isDragging ? "cursor-grabbing" : "cursor-grab") : ""}`}
       onMouseDown={(e) => {
-        if (zoom <= 1) return
+        if (!panEnabled) return
         if ((e.target as HTMLElement).closest("button")) return
         e.preventDefault()
         dragRef.current = {
@@ -273,8 +395,8 @@ function ReaderPage() {
           return
         }
 
-        // Pan quando zoomado
-        if (zoom > 1) {
+        // Pan quando zoomado (só no modo flip)
+        if (panEnabled) {
           el.dataset.moved = "true"
           const startX = Number(el.dataset.touchStartX ?? 0)
           const startY = Number(el.dataset.touchStartY ?? 0)
@@ -336,7 +458,13 @@ function ReaderPage() {
             </p>
             <button
               onClick={() => {
-                bookRef.current?.pageFlip().turnToPage(resumePrompt - 1)
+                if (scrollMode) {
+                  document
+                    .getElementById(`page-${resumePrompt}`)
+                    ?.scrollIntoView()
+                } else {
+                  bookRef.current?.pageFlip().turnToPage(resumePrompt - 1)
+                }
                 setCurrentPage(resumePrompt)
                 setResumePrompt(null)
               }}
@@ -403,7 +531,7 @@ function ReaderPage() {
       <div className="flex-1 flex items-center justify-center overflow-hidden relative">
         <button
           onClick={goPrev}
-          disabled={currentPage === 1 || zoom > 1}
+          disabled={!scrollMode && (currentPage === 1 || zoom > 1)}
           className={`cursor-pointer absolute left-2 z-10 text-white bg-black/50 hover:bg-black/80 rounded-full p-2 transition-all disabled:opacity-20 ${
             showUI ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
@@ -411,54 +539,67 @@ function ReaderPage() {
           <ChevronLeft size={28} />
         </button>
 
-        <div
-          style={{
-            transform: `scale(${zoom}) translate(${panX / zoom}px, ${panY / zoom}px)`,
-            transformOrigin: "center center",
-            transition: interacting
-              ? "none"
-              : "transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)",
-            // com zoom, o arrasto vira pan e não vira flip
-            pointerEvents: zoom > 1 ? "none" : "auto",
-            width: settings.doublePage ? pageW * 2 : pageW,
-          }}
-        >
-          <Book
-            key={settings.doublePage ? "double" : "single"} // remonta ao trocar o modo
-            ref={bookRef}
-            width={pageW}
-            height={pageH}
-            size="fixed"
-            startPage={currentPage - 1}
-            showCover={false}
-            usePortrait={!settings.doublePage}
-            drawShadow
-            maxShadowOpacity={0.5}
-            flippingTime={700}
-            swipeDistance={30}
-            mobileScrollSupport={false}
-            useMouseEvents
-            onFlip={(e: { data: number }) => setCurrentPage(e.data + 1)}
-            className=""
-            style={{}}
+        {scrollMode ? (
+          <ScrollView
+            filePath={filePath}
+            fileType={fileType}
+            pageCount={pageCount}
+            startPage={currentPage}
+            zoom={zoom}
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            scrollRef={scrollRef}
+          />
+        ) : (
+          <div
+            style={{
+              transform: `scale(${zoom}) translate(${panX / zoom}px, ${panY / zoom}px)`,
+              transformOrigin: "center center",
+              transition: interacting
+                ? "none"
+                : "transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)",
+              // com zoom, o arrasto vira pan e não vira flip
+              pointerEvents: zoom > 1 ? "none" : "auto",
+              width: settings.doublePage ? pageW * 2 : pageW,
+            }}
           >
-            {Array.from({ length: pageCount }, (_, i) => (
-              <FlipPage
-                key={i}
-                n={i + 1}
-                src={
-                  Math.abs(i + 1 - currentPage) <= PREFETCH + 1
-                    ? pageUrl(filePath, fileType, i + 1)
-                    : undefined
-                }
-              />
-            ))}
-          </Book>
-        </div>
+            <Book
+              key={settings.doublePage ? "double" : "single"} // remonta ao trocar o modo
+              ref={bookRef}
+              width={pageW}
+              height={pageH}
+              size="fixed"
+              startPage={currentPage - 1}
+              showCover={false}
+              usePortrait={!settings.doublePage}
+              drawShadow
+              maxShadowOpacity={0.5}
+              flippingTime={700}
+              swipeDistance={30}
+              mobileScrollSupport={false}
+              useMouseEvents
+              onFlip={(e: { data: number }) => setCurrentPage(e.data + 1)}
+              className=""
+              style={{}}
+            >
+              {Array.from({ length: pageCount }, (_, i) => (
+                <FlipPage
+                  key={i}
+                  n={i + 1}
+                  src={
+                    Math.abs(i + 1 - currentPage) <= PREFETCH + 1
+                      ? pageUrl(filePath, fileType, i + 1)
+                      : undefined
+                  }
+                />
+              ))}
+            </Book>
+          </div>
+        )}
 
         <button
           onClick={goNext}
-          disabled={currentPage >= pageCount || zoom > 1}
+          disabled={!scrollMode && (currentPage >= pageCount || zoom > 1)}
           className={`cursor-pointer absolute right-2 z-10 text-white bg-black/50 hover:bg-black/80 rounded-full p-2 transition-all disabled:opacity-20 ${
             showUI ? "opacity-100" : "opacity-0 pointer-events-none"
           }`}
