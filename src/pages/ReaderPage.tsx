@@ -580,7 +580,7 @@ function ReaderPage() {
             }}
           >
             <Book
-              key={settings.doublePage ? "double" : "single"} // remonta ao trocar o modo
+              key={`${settings.doublePage ? "double" : "single"}-${settings.pageFlip ? "flip" : "static"}`}
               ref={bookRef}
               width={pageW}
               height={pageH}
@@ -588,9 +588,9 @@ function ReaderPage() {
               startPage={currentPage - 1}
               showCover={false}
               usePortrait={!settings.doublePage}
-              drawShadow
+              drawShadow={settings.pageFlip}
               maxShadowOpacity={0.5}
-              flippingTime={700}
+              flippingTime={settings.pageFlip ? 700 : 1}
               swipeDistance={30}
               mobileScrollSupport={false}
               useMouseEvents

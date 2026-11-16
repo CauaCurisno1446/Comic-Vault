@@ -225,10 +225,8 @@ function CoverCard({
       }}
       // O centro é feito com margem negativa (e não com translate), porque
       // a Motion controla o transform inline e anularia as classes translate.
-      className={`absolute left-1/2 top-1/2 -ml-[58px] -mt-[87px] h-[174px] w-[116px] cursor-pointer rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cv-accent sm:-ml-[70px] sm:-mt-[105px] sm:h-[210px] sm:w-[140px] ${
-        isActive
-          ? "shadow-[0_18px_40px_-10px_rgba(0,0,0,0.65)] ring-2 ring-cv-accent ring-offset-2 ring-offset-cv-card"
-          : "shadow-2xl"
+      className={`absolute left-1/2 top-1/2 -ml-[58px] -mt-[87px] h-[174px] w-[116px] cursor-pointer rounded-sm text-left focus-visible:outline-none sm:-ml-[70px] sm:-mt-[105px] sm:h-[210px] sm:w-[140px] ${
+        isActive ? "shadow-[0_18px_40px_-10px_rgba(0,0,0,0.65)]" : "shadow-2xl"
       }`}
     >
       <motion.span

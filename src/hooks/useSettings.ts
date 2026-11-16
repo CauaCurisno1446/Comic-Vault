@@ -7,6 +7,7 @@ export interface Settings {
   theme: string
   scrollMode: boolean
   showPanorama: boolean
+  pageFlip: boolean
 }
 
 const DEFAULTS: Settings = {
@@ -16,6 +17,7 @@ const DEFAULTS: Settings = {
   theme: "midnight",
   scrollMode: false,
   showPanorama: true,
+  pageFlip: true,
 }
 
 const KEY = "comicvault-settings"

@@ -177,6 +177,21 @@ export function SettingsModal({
             }}
           />
 
+          <Toggle
+            label="Efeito de virar página"
+            description="Anima a troca de página como um livro de verdade"
+            value={settings.pageFlip}
+            onChange={(v) => {
+              onUpdate("pageFlip", v)
+              toast.success(
+                `Efeito de virar página ${v ? "ativado" : "desativado"}`,
+                {
+                  id: SETTING_TOAST_ID,
+                },
+              )
+            }}
+          />
+
           {/* Tema */}
           <p className="text-cv-text-subtle text-xs uppercase tracking-widest mt-6 mb-3 flex flex-row gap-2">
             <Palette size={16} />
