@@ -1,8 +1,14 @@
-import express from "express"
+import express, {
+  type NextFunction,
+  type Request,
+  type RequestHandler,
+  type Response,
+} from "express"
 import cors from "cors"
 import fs from "fs"
 import path from "path"
 import { generateCover } from "./coverGenerator"
+import { resolveArchiveType } from "./coverGuard"
 import { getPage, getPageCount } from "./reader"
 import fileRouter from "./fileRoutes"
 
@@ -26,6 +32,23 @@ function resolveLibraryPath(relativePath = "") {
 
   return resolved
 }
+
+/** Igual ao resolveLibraryPath, mas devolve null em vez de lançar erro */
+function safeResolve(relativePath: unknown): string | null {
+  if (typeof relativePath !== "string" || !relativePath) return null
+
+  try {
+    return resolveLibraryPath(relativePath)
+  } catch {
+    return null
+  }
+}
+
+const asyncHandler =
+  (fn: (req: Request, res: Response) => Promise<unknown>): RequestHandler =>
+  (req, res, next) => {
+    fn(req, res).catch(next)
+  }
 
 // Valida os arquivos salvos no histórico
 app.post("/api/history/validate", (req, res) => {
@@ -267,83 +290,110 @@ app.get("/api/files", (req, res) => {
   res.json(files)
 })
 
-app.get("/api/cover", async (req, res) => {
-  const filePath = resolveLibraryPath(req.query.path as string)
-  const fileType = req.query.type as string
+app.get(
+  "/api/cover",
+  asyncHandler(async (req, res) => {
+    const filePath = safeResolve(req.query.path)
+    const fileType = String(req.query.type || "")
 
-  if (!filePath || !fileType || !fs.existsSync(filePath)) {
-    res.status(404).send("Arquivo não encontrado")
-    return
-  }
+    if (!filePath || !fileType || !fs.existsSync(filePath)) {
+      res.status(404).send("Arquivo não encontrado")
+      return
+    }
 
-  const coverPath = await generateCover(filePath, fileType)
+    const coverPath = await generateCover(filePath, fileType)
 
-  if (!coverPath) {
-    res.status(404).send("Não foi possível gerar a capa")
-    return
-  }
+    if (!coverPath) {
+      res.status(404).send("Não foi possível gerar a capa")
+      return
+    }
 
-  res.sendFile(path.resolve(coverPath))
-})
+    res.sendFile(path.resolve(coverPath), { maxAge: "1d" })
+  }),
+)
 
-app.get("/api/read/info", async (req, res) => {
-  const filePath = resolveLibraryPath(req.query.path as string)
-  const fileType = req.query.type as string
+app.get(
+  "/api/read/info",
+  asyncHandler(async (req, res) => {
+    const filePath = safeResolve(req.query.path)
+    const fileType = String(req.query.type || "")
 
-  if (!filePath || !fs.existsSync(filePath)) {
-    res.status(404).json({ error: "Arquivo não encontrado" })
-    return
-  }
+    if (!filePath || !fs.existsSync(filePath)) {
+      res.status(404).json({ error: "Arquivo não encontrado" })
+      return
+    }
 
-  try {
-    const pageCount = await getPageCount(filePath, fileType)
+    try {
+      const type = await resolveArchiveType(filePath, fileType)
+      const pageCount = await getPageCount(filePath, type)
 
-    res.json({
-      pageCount,
-    })
-  } catch (error) {
-    console.error("Erro ao carregar quadrinho:", error)
+      res.json({
+        pageCount,
+      })
+    } catch (error) {
+      console.error("Erro ao carregar quadrinho:", error)
 
-    res.status(422).json({
-      error: "Não foi possível processar este quadrinho.",
-    })
-  }
-})
+      res.status(422).json({
+        error: "Não foi possível processar este quadrinho.",
+      })
+    }
+  }),
+)
 
 // Retorna a imagem de uma página específica
-app.get("/api/read/page", async (req, res) => {
-  const filePath = resolveLibraryPath(req.query.path as string)
-  const fileType = req.query.type as string
-  const pageNum = parseInt(req.query.page as string)
+app.get(
+  "/api/read/page",
+  asyncHandler(async (req, res) => {
+    const filePath = safeResolve(req.query.path)
+    const fileType = String(req.query.type || "")
+    const pageNum = parseInt(req.query.page as string)
 
-  if (!filePath || !fs.existsSync(filePath) || isNaN(pageNum)) {
-    res.status(400).json({ error: "Parâmetros inválidos" })
-    return
-  }
+    if (!filePath || !fs.existsSync(filePath) || isNaN(pageNum)) {
+      res.status(400).json({ error: "Parâmetros inválidos" })
+      return
+    }
 
-  try {
-    const buffer = await getPage(filePath, fileType, pageNum)
-    res.setHeader("Content-Type", "image/jpeg")
-    res.setHeader("Cache-Control", "private, max-age=3600")
-    res.send(buffer)
-  } catch (err) {
-    res.status(500).json({ error: String(err) })
-  }
-})
+    try {
+      const type = await resolveArchiveType(filePath, fileType)
+      const buffer = await getPage(filePath, type, pageNum)
+      res.setHeader("Content-Type", "image/jpeg")
+      res.setHeader("Cache-Control", "private, max-age=3600")
+      res.send(buffer)
+    } catch (err) {
+      res.status(500).json({ error: String(err) })
+    }
+  }),
+)
 
-app.post("/api/read/exists", express.json(), (req, res) => {
+app.post("/api/read/exists", (req, res) => {
   const paths: unknown[] = Array.isArray(req.body?.paths) ? req.body.paths : []
 
   const result: Record<string, boolean> = {}
+
   for (const p of paths) {
-    if (typeof p === "string") result[p] = fs.existsSync(p)
+    if (typeof p !== "string") continue
+
+    const resolved = safeResolve(p)
+    result[p] = resolved !== null && fs.existsSync(resolved)
   }
 
   res.json(result)
 })
 
-// Serve a pasta de capas como estático também (opcional)
 app.use("/covers", express.static(path.join(process.cwd(), ".covers")))
+
+// Qualquer erro que chegue até aqui vira uma resposta 500, sem derrubar o servidor
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  console.error("Erro não tratado:", err)
+
+  if (res.headersSent) return
+
+  res.status(500).json({ error: "Erro interno do servidor" })
+})
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Promise rejeitada sem tratamento:", reason)
+})
 
 app.listen(3001, "0.0.0.0", () =>
   console.log("Backend rodando em http://0.0.0.0:3001"),

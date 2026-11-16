@@ -3,6 +3,14 @@ import path from "path"
 import sharp from "sharp"
 import JSZip from "jszip"
 import crypto from "crypto"
+import {
+  guardedCover,
+  resolveArchiveType,
+  rarFirstImage,
+  naturalCompare,
+  IMAGE_RE,
+  HIDDEN_RE,
+} from "./coverGuard"
 
 const COVER_WIDTH = 300
 const COVERS_DIR = path.join(process.cwd(), ".covers")
@@ -22,91 +30,92 @@ export async function generateCover(
 
   if (fs.existsSync(coverPath)) return coverPath
 
-  try {
-    if (fileType === "cbz") return await cbzCover(filePath, coverPath)
-    if (fileType === "cbr") return await cbrCover(filePath, coverPath)
-    if (fileType === "pdf") return await pdfCover(filePath, coverPath)
-  } catch (err) {
-    console.error(`Erro ao gerar capa para ${filePath}:`, err)
-  }
+  // guardedCover: fila (2 por vez), pedidos repetidos juntos, falhas lembradas
+  return guardedCover(filePath, async () => {
+    // outro pedido pode ter gerado a capa enquanto este esperava na fila
+    if (fs.existsSync(coverPath)) return coverPath
 
-  return null
+    // decide pelo conteúdo: ".cbr" que é ZIP vira "cbz" (e vice-versa)
+    const type = await resolveArchiveType(filePath, fileType)
+
+    if (type === "cbz") return cbzCover(filePath, coverPath)
+    if (type === "cbr") return cbrCover(filePath, coverPath)
+    if (type === "pdf") return pdfCover(filePath, coverPath)
+
+    throw new Error(`tipo de arquivo não suportado: ${fileType}`)
+  })
 }
 
-async function cbzCover(
-  filePath: string,
-  coverPath: string,
-): Promise<string | null> {
-  const buffer = fs.readFileSync(filePath)
+async function saveCover(image: Uint8Array, coverPath: string) {
+  const tmp = `${coverPath}.${process.pid}.tmp.jpg`
+
+  try {
+    await sharp(Buffer.from(image), { failOn: "none" })
+      .resize(COVER_WIDTH, null, { withoutEnlargement: true })
+      .jpeg({ quality: 85 })
+      .toFile(tmp)
+
+    await fs.promises.rename(tmp, coverPath)
+  } catch (err) {
+    await fs.promises.rm(tmp, { force: true })
+    throw err
+  }
+}
+
+async function cbzCover(filePath: string, coverPath: string): Promise<string> {
+  const buffer = await fs.promises.readFile(filePath)
   const zip = await JSZip.loadAsync(buffer)
 
   const imageFiles = Object.keys(zip.files)
     .filter(
-      (name) => /\.(jpg|jpeg|png|webp)$/i.test(name) && !zip.files[name].dir,
+      (name) =>
+        IMAGE_RE.test(name) && !HIDDEN_RE.test(name) && !zip.files[name].dir,
     )
-    .sort()
+    .sort(naturalCompare)
 
-  if (imageFiles.length === 0) return null
+  if (imageFiles.length === 0) {
+    throw new Error("nenhuma imagem encontrada no arquivo")
+  }
 
   const imageData = await zip.files[imageFiles[0]].async("nodebuffer")
 
-  await sharp(imageData)
-    .resize(COVER_WIDTH, null, { withoutEnlargement: true })
-    .jpeg({ quality: 85 })
-    .toFile(coverPath)
-
+  await saveCover(imageData, coverPath)
   return coverPath
 }
 
-async function cbrCover(
-  filePath: string,
-  coverPath: string,
-): Promise<string | null> {
-  const { createExtractorFromData } = await import("node-unrar-js")
+async function cbrCover(filePath: string, coverPath: string): Promise<string> {
+  // lê do disco e extrai só a primeira imagem
+  const image = await rarFirstImage(filePath)
 
-  const fileBuffer = fs.readFileSync(filePath)
-  const extractor = await createExtractorFromData({ data: fileBuffer })
-
-  const { files } = extractor.extract({
-    files: (fileHeader) => {
-      // Extrai só o primeiro arquivo de imagem
-      return /\.(jpg|jpeg|png)$/i.test(fileHeader.name)
-    },
-  })
-
-  const imageFiles = [...files]
-    .filter((f) => !f.fileHeader.flags.directory && f.extraction)
-    .sort((a, b) => a.fileHeader.name.localeCompare(b.fileHeader.name))
-
-  if (imageFiles.length === 0 || !imageFiles[0].extraction) return null
-
-  await sharp(Buffer.from(imageFiles[0].extraction))
-    .resize(COVER_WIDTH, null, { withoutEnlargement: true })
-    .jpeg({ quality: 85 })
-    .toFile(coverPath)
-
+  await saveCover(image, coverPath)
   return coverPath
 }
 
-async function pdfCover(
-  filePath: string,
-  coverPath: string,
-): Promise<string | null> {
+async function pdfCover(filePath: string, coverPath: string): Promise<string> {
   const mupdf = await import("mupdf")
 
-  const fileBuffer = fs.readFileSync(filePath)
+  const fileBuffer = await fs.promises.readFile(filePath)
   const doc = mupdf.Document.openDocument(fileBuffer, "application/pdf")
 
-  const page = doc.loadPage(0) // primeira página
-  const matrix = mupdf.Matrix.scale(1.5, 1.5)
-  const pixmap = page.toPixmap(matrix, mupdf.ColorSpace.DeviceRGB, false, true)
+  try {
+    const page = doc.loadPage(0) // primeira página
+    const matrix = mupdf.Matrix.scale(1.5, 1.5)
+    const pixmap = page.toPixmap(
+      matrix,
+      mupdf.ColorSpace.DeviceRGB,
+      false,
+      true,
+    )
 
-  const pngBuffer = pixmap.asPNG()
-
-  await sharp(Buffer.from(pngBuffer))
-    .resize(COVER_WIDTH, null, { withoutEnlargement: true })
-    .jpeg({ quality: 85 })
-    .toFile(coverPath)
+    try {
+      await saveCover(pixmap.asPNG(), coverPath)
+    } finally {
+      ;(pixmap as any).destroy?.()
+      ;(page as any).destroy?.()
+    }
+  } finally {
+    ;(doc as any).destroy?.()
+  }
 
   return coverPath
 }
