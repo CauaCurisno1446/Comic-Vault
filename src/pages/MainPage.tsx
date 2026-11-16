@@ -2,7 +2,8 @@ import { useEffect, useState, useRef } from "react"
 import { useOutletContext, useNavigate } from "react-router-dom"
 import { motion, AnimatePresence, MotionConfig } from "motion/react"
 import type { SelectedFile } from "../layout/MainLayout"
-import { isCompleted } from "../hooks/useReadingProgress"
+import { loadProgress } from "../hooks/useReadingProgress"
+import { useReadStatus } from "../hooks/useReadStatus"
 import { useSettings } from "../hooks/useSettings"
 import PanoramaGallery from "../components/PanoramaGallery"
 import {
@@ -20,6 +21,8 @@ import {
   X,
   LayoutGrid,
   List,
+  CircleCheck,
+  Undo2,
 } from "lucide-react"
 import SplitText from "../components/SplitText"
 import toast from "react-hot-toast"
@@ -46,6 +49,8 @@ type ViewMode = "grid" | "list"
 
 const API = `http://${window.location.hostname}:3001`
 const VIEW_MODE_KEY = "comicvault-view-mode"
+
+const MENU_HEIGHT = 172
 
 // Compara caminhos ignorando "\" x "/" e barras nas pontas
 const normalizePath = (p: string) =>
@@ -76,18 +81,35 @@ function Cover({ src, alt }: { src: string; alt: string }) {
   )
 }
 
-/** Número de páginas: só é buscado quando o item aparece na tela */
+/** Número de páginas (com progresso, se houver): só é buscado quando o item aparece na tela */
 function PageCount({ file }: { file: FileItem }) {
   const { ref, pages, failed } = usePageCount(file.path, file.type)
+  const { isRead } = useReadStatus()
+
+  // Só mostra "20/100" se começou, não terminou e não foi marcado como lido
+  const saved = loadProgress(file.path)
+  const showProgress =
+    pages !== null &&
+    !!saved &&
+    saved > 1 &&
+    saved < pages &&
+    !isRead(file.path)
 
   return (
     <span
       ref={ref}
       className="text-cv-text-muted text-[10px] md:text-xs tabular-nums shrink-0"
-      title="Número de páginas"
+      title={showProgress ? "Página atual / total" : "Número de páginas"}
     >
       {pages !== null ? (
-        `${pages} pág${pages !== 1 ? "s" : ""}.`
+        showProgress ? (
+          <>
+            <span className="text-cv-accent font-semibold">{saved}</span>/
+            {pages} págs.
+          </>
+        ) : (
+          `${pages} pág${pages !== 1 ? "s" : ""}.`
+        )
       ) : failed ? (
         "—"
       ) : (
@@ -190,6 +212,7 @@ function MainPage() {
   const { selectedDir, setSelectedFile, search } =
     useOutletContext<OutletContext>()
   const { settings } = useSettings()
+  const { isRead, setRead } = useReadStatus()
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(false)
   const [moving, setMoving] = useState<FileItem | null>(null)
@@ -229,7 +252,6 @@ function MainPage() {
     e.stopPropagation()
     const rect = e.currentTarget.getBoundingClientRect()
     const width = 176
-    const height = 132
 
     const x = Math.max(
       8,
@@ -237,7 +259,9 @@ function MainPage() {
     )
     const below = rect.bottom + 4
     const y =
-      below + height > window.innerHeight ? rect.top - height - 4 : below
+      below + MENU_HEIGHT > window.innerHeight
+        ? rect.top - MENU_HEIGHT - 4
+        : below
 
     setMenu({ file, x, y: Math.max(8, y) })
   }
@@ -407,6 +431,14 @@ function MainPage() {
     }
   }
 
+  function toggleRead(file: FileItem) {
+    const read = isRead(file.path)
+    setRead(file.path, !read)
+    toast.success(read ? "Marcado como não lido" : "Marcado como lido", {
+      id: "read-status",
+    })
+  }
+
   return (
     // reducedMotion="user": respeita quem desativou animações no sistema
     <MotionConfig reducedMotion="user">
@@ -570,7 +602,7 @@ function MainPage() {
           >
             <AnimatePresence mode="popLayout">
               {filteredFiles.map((file, index) => {
-                const completed = isCompleted(file.path)
+                const completed = isRead(file.path)
 
                 if (viewMode === "list") {
                   return (
@@ -767,6 +799,24 @@ function MainPage() {
                 <Info size={15} />
                 Informações
               </button> */}
+              <button
+                role="menuitem"
+                onClick={() => {
+                  const file = menu.file
+                  setMenu(null)
+                  toggleRead(file)
+                }}
+                className="cursor-pointer w-full flex items-center gap-2 px-3 py-2 text-sm text-cv-text hover:bg-[var(--cv-accent-muted)] transition-colors"
+              >
+                {isRead(menu.file.path) ? (
+                  <Undo2 size={15} />
+                ) : (
+                  <CircleCheck size={15} />
+                )}
+                {isRead(menu.file.path)
+                  ? "Marcar como não lido"
+                  : "Marcar como lido"}
+              </button>
               <button
                 role="menuitem"
                 onClick={() => {

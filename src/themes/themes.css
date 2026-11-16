@@ -43,7 +43,7 @@ body {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--cv-scrollbar-thumb) var(--cv-scrollbar);
+  scrollbar-color: var(--cv-accent) var(--cv-scrollbar);
 }
 
 *::-webkit-scrollbar {
