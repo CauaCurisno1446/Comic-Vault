@@ -441,6 +441,15 @@ function ReaderPage() {
           return
         }
 
+        if (!settings.pageFlip && !scrollMode && zoom <= 1) {
+          const startX = Number(el.dataset.touchStartX ?? 0)
+          const dx = e.changedTouches[0].clientX - startX
+          if (Math.abs(dx) > 50) {
+            if (dx < 0) goNext()
+            else goPrev()
+          }
+        }
+
         // O tap/arrasto para virar página agora é tratado pelo react-pageflip
       }}
     >
@@ -456,9 +465,6 @@ function ReaderPage() {
         )}
       </AnimatePresence>
 
-      {/* Prompt de retomar leitura
-          (o -translate-x-1/2 do Tailwind foi trocado por x: "-50%" da Motion,
-          porque a Motion controla o transform inline e anularia a classe) */}
       <AnimatePresence>
         {resumePrompt && (
           <motion.div
@@ -568,6 +574,13 @@ function ReaderPage() {
           />
         ) : (
           <div
+            onClick={(e) => {
+              if (settings.pageFlip || zoom > 1) return
+              const rect = e.currentTarget.getBoundingClientRect()
+              const x = e.clientX - rect.left
+              if (x < rect.width / 2) goPrev()
+              else goNext()
+            }}
             style={{
               transform: `scale(${zoom}) translate(${panX / zoom}px, ${panY / zoom}px)`,
               transformOrigin: "center center",
@@ -589,11 +602,12 @@ function ReaderPage() {
               showCover={false}
               usePortrait={!settings.doublePage}
               drawShadow={settings.pageFlip}
+              showPageCorners={settings.pageFlip}
               maxShadowOpacity={0.5}
               flippingTime={settings.pageFlip ? 700 : 1}
               swipeDistance={30}
               mobileScrollSupport={false}
-              useMouseEvents
+              useMouseEvents={settings.pageFlip}
               onFlip={(e: { data: number }) => setCurrentPage(e.data + 1)}
               className=""
               style={{}}
